@@ -15,6 +15,14 @@ Rect :: struct {
     w, h: float;
 }
 
+print_db_documents ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+    new_context: Context;
+    push_context new_context {
+        print("num_cols: %", num_cols);
+    } 
+    return SQLITE_OK;
+}
+
 color_1 : Vector4 = .{0.13, 0.15, 0.18, 1};
 color_red : Vector4 = .{1, 0, 0, 1};
 
@@ -24,9 +32,34 @@ main :: () {
     defer sqlite3_close(db);
 
     if err != SQLITE_OK {
-        print("Error opening DB #%", err);
+        print("Error opening DB %", err);
         return;
     }
+
+    sql_string :: #string DONE
+CREATE TABLE IF NOT EXISTS Categories (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+DONE
+    errmsg : *u8;
+    result := sqlite3_exec(db, sql_string, null, null, *errmsg);
+    assert(result == SQLITE_OK);
+    
+    // categories := string.["food", "cloth", "school"];
+    // sql_str: string;
+    // for categories {
+    //     sql_str = sprint("INSERT INTO Categories (id, name) VALUES (%, \"%\");", it_index, it);
+    //     result = sqlite3_exec(db, to_c_string(sql_str), null, null, *errmsg);
+    //     assert(result == SQLITE_OK);
+    // }
+
+    sql_select :: #string DONE
+SELECT * FROM Categories;
+DONE
+    result = sqlite3_exec(db, sql_select, print_db_documents, null, *errmsg);
+
+
         
     the_window = create_window(window_width, window_height, "Expenses", background_color_rgb = float.[.55, .01, .9]);
     window_width, window_height = Simp.get_render_dimensions(the_window);

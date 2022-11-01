@@ -14,5 +14,10 @@ What do we want?
 
 TODO
 
-- Open a window
+- Create a table
+    - find & bind function(s) from sqlite3 library
+    - SQL query
 - Draw some text into it
+
+DONE
++ Open a window
