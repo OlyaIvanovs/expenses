@@ -1,6 +1,7 @@
 #import "Window_Creation";
 #import "Basic";
 #import "Math";
+#import "File";
 Simp :: #import "Simp";
 Input :: #import "Input";
 
@@ -15,10 +16,33 @@ Rect :: struct {
     w, h: float;
 }
 
+from_c_string ::(s: *u8) -> string {
+    count: s64 = 0;
+    q := s;
+    while <<q {
+        count += 1;
+        q += 1;
+    }
+
+    str: string = ---;
+    str.data = s;
+    str.count = count;
+
+    return str;
+}
+
 print_db_documents ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
     new_context: Context;
     push_context new_context {
-        print("num_cols: %", num_cols);
+        columns: []*u8 = ---;
+        columns.count = num_cols;
+        columns.data = col_data;
+
+        for columns {
+            s := from_c_string(it);
+            print("% ", s);
+        }
+        print("\n");
     } 
     return SQLITE_OK;
 }
@@ -36,14 +60,19 @@ main :: () {
         return;
     }
 
-    sql_string :: #string DONE
-CREATE TABLE IF NOT EXISTS Categories (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
-);
-DONE
+    // Initialise DB
+    load_file_at_comptime :: (filename: string) -> string {
+        contents, success := read_entire_file(filename);
+        assert(success);
+        return contents;
+    }
+    init_sql :: #run load_file_at_comptime("init_db.sql");
+
     errmsg : *u8;
-    result := sqlite3_exec(db, sql_string, null, null, *errmsg);
+    result := sqlite3_exec(db, init_sql, null, null, *errmsg);
+    if result != SQLITE_OK {
+        print("ERROR: %\n",from_c_string(errmsg));
+    }
     assert(result == SQLITE_OK);
     
     // categories := string.["food", "cloth", "school"];
@@ -78,7 +107,6 @@ DONE
         }
 
         draw_one_frame();
-
         sleep_milliseconds(10);
         reset_temporary_storage();
     }

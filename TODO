@@ -13,11 +13,12 @@ What do we want?
 
 
 TODO
-
-- Create a table
-    - find & bind function(s) from sqlite3 library
-    - SQL query
 - Draw some text into it
+- Create file to init db
+- 
 
 DONE
 + Open a window
++ Create a table
+    + SQL query
+    + find & bind function(s) from sqlite3 library
