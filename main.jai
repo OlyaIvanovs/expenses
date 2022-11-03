@@ -90,26 +90,26 @@ DONE
 
 
         
-    the_window = create_window(window_width, window_height, "Expenses", background_color_rgb = float.[.55, .01, .9]);
-    window_width, window_height = Simp.get_render_dimensions(the_window);
+    // the_window = create_window(window_width, window_height, "Expenses", background_color_rgb = float.[.55, .01, .9]);
+    // window_width, window_height = Simp.get_render_dimensions(the_window);
 
-    Simp.set_render_target(the_window);
+    // Simp.set_render_target(the_window);
 
-    quit : bool;
+    // quit : bool;
 
-    while !quit {
-        Input.update_window_events();
+    // while !quit {
+    //     Input.update_window_events();
 
-        for Input.events_this_frame {
-            if it.type == .QUIT {
-                quit = true;
-            }
-        }
+    //     for Input.events_this_frame {
+    //         if it.type == .QUIT {
+    //             quit = true;
+    //         }
+    //     }
 
-        draw_one_frame();
-        sleep_milliseconds(10);
-        reset_temporary_storage();
-    }
+    //     draw_one_frame();
+    //     sleep_milliseconds(10);
+    //     reset_temporary_storage();
+    // }
 }
 
 draw_one_frame :: () {
