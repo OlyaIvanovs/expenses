@@ -1,5 +1,6 @@
 #import "Window_Creation";
 #import "Basic";
+#import "String";
 #import "Math";
 #import "File";
 Simp :: #import "Simp";
@@ -11,9 +12,22 @@ window_width : s32 = 1920;
 window_height : s32 = 1080;
 the_window : Window_Type;
 
+color_1 : Vector4 = .{0.13, 0.15, 0.18, 1};
+color_red : Vector4 = .{1, 0, 0, 1};
+
+
 Rect :: struct {
     x, y: float;
     w, h: float;
+}
+
+Transaction :: struct {
+    id: int;
+    date: string;
+    amount: float64;
+    details: string;
+    note: string;
+    category_id: int;
 }
 
 from_c_string ::(s: *u8) -> string {
@@ -47,8 +61,27 @@ print_db_documents ::(userdata: *void, num_cols: int, col_data: **u8, col_names:
     return SQLITE_OK;
 }
 
-color_1 : Vector4 = .{0.13, 0.15, 0.18, 1};
-color_red : Vector4 = .{1, 0, 0, 1};
+
+Csv_File :: struct {
+    contents: string;  // owned string
+    strings: [][] string;
+}
+
+read_csv_file :: (filename: string, sep: string, skip_top_lines: int) -> [][]string {
+    content, success :=read_entire_file(filename);
+    assert(success);
+
+    res : [..][]string;
+    lines := split(content, "\n");
+    for line,i: lines {
+        if i < skip_top_lines continue;
+        trimmed := trim_right(line, " \r");
+        elems := split(trimmed, ",");
+        array_add(*res, elems);
+    }
+    return res;
+}
+
 
 main :: () {
     db : sqlite3;
@@ -88,7 +121,51 @@ SELECT * FROM Categories;
 DONE
     result = sqlite3_exec(db, sql_select, print_db_documents, null, *errmsg);
 
+    // Open file and parse
+    contents, success := read_entire_file("ex.csv");
+    assert(success);
 
+    Csv_File :: struct(num_cols: int) {
+        raw_content: string;
+        rows: [] Csv_Row(num_cols);
+    }
+
+    Csv_Row :: struct(num_cols: int) {
+        fields: [num_cols]string;
+    }
+
+    read_csv :: (filename: string, sep: string, skip_top_lines: int, $num_cols: int) -> Csv_File(num_cols) {
+        content, success := read_entire_file(filename);
+        assert(success);
+
+        rows: [..] Csv_Row(num_cols);
+
+        lines := split(content, "\n");
+        for line, line_num : lines {
+            if line_num < skip_top_lines continue;
+            trimmed := trim_right(line, " \r");
+            elems := split(trimmed, ",");
+            if elems.count != num_cols continue;
+
+            row := array_add(*rows);
+            for i : 0..num_cols-1 {
+                row.fields[i] = elems[i];
+            }
+        }
+
+        result: Csv_File(num_cols) = ---;
+        result.raw_content = content;
+        result.rows = rows;
+
+        return result;
+    }
+
+    csv_file := read_csv("ex.csv", ",", 6, num_cols = 7);
+    for row : csv_file.rows {
+        print("% - type %, num_cols: %\n", row, type_of(row), type_of(row).num_cols);
+    }
+
+    // transactions : [..]Transaction;
         
     // the_window = create_window(window_width, window_height, "Expenses", background_color_rgb = float.[.55, .01, .9]);
     // window_width, window_height = Simp.get_render_dimensions(the_window);

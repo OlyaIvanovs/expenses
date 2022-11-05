@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS Categories (
 
 CREATE TABLE IF NOT EXISTS Transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    transaction_date TEXT,
     amount REAL DEFAULT 0,
     details TEXT NOT NULL,
     note TEXT,
