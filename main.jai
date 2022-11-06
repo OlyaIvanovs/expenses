@@ -160,13 +160,56 @@ DONE
         return result;
     }
 
+    transactions : [..]Transaction;
     csv_file := read_csv("ex.csv", ",", 6, num_cols = 7);
+    ok: bool;
     for row : csv_file.rows {
-        print("% - type %, num_cols: %\n", row, type_of(row), type_of(row).num_cols);
+        t := array_add(*transactions);    
+        t.date = row.fields[1];
+        t.amount, ok = parse_float64(*row.fields[6]);
+        if !ok then log_error("Couldn't parse amount as float: %\n", row.fields[6]);
+        t.details = row.fields[5];
+        if contains_nocase(t.details, "pak n save fuel") || contains_nocase(t.details, "bp"){
+            t.category_id = 5;
+        } else if contains_nocase(t.details, "pak n save") || contains_nocase(t.details, "countdown") {
+            t.category_id = 1;
+        } else if contains_nocase(t.details, "pizza") || contains_nocase(t.details, "burger") {
+            t.category_id = 3;
+        } else if contains_nocase(t.details, "swim") {
+            t.category_id = 6;
+        } else if contains_nocase(t.details, "hotel") {
+            t.category_id = 7;
+        }
     }
 
-    // transactions : [..]Transaction;
-        
+    parse_float64 :: (line: *string) -> value:float64, success:bool {
+        token, ok := parse_token(line);
+        value: float64;
+        if ok value, ok = string_to_float64(token);
+        return value, ok;
+    }
+
+    // for t : transactions print("%\n", t);
+
+    query_builder: String_Builder;
+    init_string_builder(*query_builder);
+    print_to_builder(*query_builder, "BEGIN TRANSACTION;\n");
+    for t : transactions {
+        insert :: #string QUERY
+    INSERT INTO Transactions (transaction_date, amount, details, category_id) VALUES ("%", %, %, %);
+    QUERY;
+        print_to_builder(*query_builder, insert, t.date, t.amount, t.details, t.category_id);
+    }
+    print_to_builder(*query_builder, "COMMIT;\n");
+
+    query := builder_to_string(*query_builder);
+    defer free(query);
+    print("Query: \n%\n", query);
+
+    result = sqlite3_exec(db, to_c_string(query), null, null, *errmsg);
+    if result != SQLITE_OK {
+        log_error("Couldn't insert transactions: %\n", from_c_string(errmsg));
+    }        
     // the_window = create_window(window_width, window_height, "Expenses", background_color_rgb = float.[.55, .01, .9]);
     // window_width, window_height = Simp.get_render_dimensions(the_window);
 

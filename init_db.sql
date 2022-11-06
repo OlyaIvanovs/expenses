@@ -16,10 +16,13 @@ CREATE TABLE IF NOT EXISTS Transactions (
             ON UPDATE NO ACTION
 );
 
-INSERT OR IGNORE INTO Categories(name) VALUES("Food");
-INSERT OR IGNORE INTO Categories(name) VALUES("Rent");
-INSERT OR IGNORE INTO Categories(name) VALUES("Cafe");
-INSERT OR IGNORE INTO Categories(name) VALUES("School");
+INSERT OR IGNORE INTO Categories(id, name) VALUES(1, "Food");
+INSERT OR IGNORE INTO Categories(id, name) VALUES(2, "Rent");
+INSERT OR IGNORE INTO Categories(id, name) VALUES(3, "Cafe");
+INSERT OR IGNORE INTO Categories(id, name) VALUES(4, "School");
+INSERT OR IGNORE INTO Categories(id, name) VALUES(5, "Fuel");
+INSERT OR IGNORE INTO Categories(id, name) VALUES(6, "Swimming");
+INSERT OR IGNORE INTO Categories(id, name) VALUES(7, "Holiday accomodation");
 
 
 -- INSERT INTO Transactions(amount, details, category_id) VALUES(100.45, "RENT", 2);
