@@ -1,0 +1,1 @@
+jai -quiet -import_dir modules src/main.jai && ./src/main
