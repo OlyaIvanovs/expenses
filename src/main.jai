@@ -3,7 +3,7 @@
 #import "String";
 #import "Math";
 #import "File";
-Simp  :: #import "Simp";
+Simp  :: #import "Simp_Ext";
 Input :: #import "Input";
 
 #load "../libs/sqlite.jai";
@@ -109,7 +109,7 @@ main :: () {
     result = sqlite3_exec(db, sql_select, add_category_from_db, null, *errmsg);
     if result != SQLITE_OK {
         log_error("ERROR: %\n",from_c_string(errmsg));
-    }
+    }                                                                     
     for categories print("%\n", it);
 
     // Open file and parse
