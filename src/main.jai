@@ -98,6 +98,10 @@ main :: () {
         for Input.get_window_resizes() {
             Simp.update_window(it.window);
             if (it.window == window) {
+
+                init_fonts();
+                screen  = make_rect(0, 0, window_width, window_height);
+
                 should_reinit := (it.width != window_width) || (it.height != window_height);
                 window_width = it.width;
                 window_height = it.height;
@@ -132,9 +136,13 @@ main :: () {
 draw_one_frame :: () {
     Simp.clear_render_target(.05, .08, .15, 1);
 
-    screen : Rect;
-    screen = make_rect(0, 0, xx window_width, xx window_height);
-    // draw_rect(screen, color_red);
+    categories_rect := cut_left(screen, 500 * dpi_scale);
+    draw_rect(categories_rect, Colors.BACKGROUND_LIGHT);
+
+    // Print categories
+    for categories {
+        Simp.draw_text(font, xx (categories_rect.x + 10 * dpi_scale), xx (categories_rect.y + categories_rect.h - line_height * it_index), it.name, Colors.UI_DEFAULT);
+    }
 
     Simp.swap_buffers(window);
 }
@@ -185,41 +193,64 @@ add_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_name
 }
 
 init_fonts :: () {
-    // font = Simp.get_font_at_size("fonts", "FiraCode-Retina.ttf", cast(int) (font_size * dpi_scale));
-    // assert(font != null, "Couldn't init main text font\n");
-    // char_size   = cast(float) font.em_width;
-    // old_line_height = line_height;
-    // line_height = cast(float) font.default_line_spacing * LINE_HEIGHT_SCALE;
+    font = Simp.get_font_at_size("fonts", "FiraCode-Retina.ttf", cast(int) (font_size * dpi_scale));
+    assert(font != null, "Couldn't init main text font\n");
+    char_size   = cast(float) font.em_width;
+    line_height = cast(float) font.default_line_spacing * LINE_HEIGHT_SCALE;
 
-    // font_ui = Simp.get_font_at_size("fonts", "SEGOEUI.TTF", cast(int) (font_ui_size * dpi_scale));
-    // assert(font_ui != null, "Couldn't init main ui font\n");
-    // font_ui_line_height = cast(float) font_ui.default_line_spacing;
+    font_ui = Simp.get_font_at_size("fonts", "SEGOEUI.TTF", cast(int) (font_ui_size * dpi_scale));
+    assert(font_ui != null, "Couldn't init main ui font\n");
+    font_ui_line_height = cast(float) font_ui.default_line_spacing;
 
-    // font_ui_bold = Simp.get_font_at_size("fonts", "SEGUISB.TTF", cast(int) (font_ui_size * dpi_scale));
-    // assert(font_ui_bold != null, "Couldn't init bold ui font\n");
+    font_ui_bold = Simp.get_font_at_size("fonts", "SEGUISB.TTF", cast(int) (font_ui_size * dpi_scale));
+    assert(font_ui_bold != null, "Couldn't init bold ui font\n");
 
-    // font_ui_small = Simp.get_font_at_size("fonts", "SEGOEUI.TTF", cast(int) (font_ui_small_size * dpi_scale));
-    // // font_ui_small = Simp.get_font_at_size("fonts", "SEGUISB.TTF", cast(int) (font_ui_small_size * dpi_scale));
-    // assert(font_ui_small != null, "Couldn't init main ui font\n");
-    // font_ui_small_line_height = cast(float) font_ui.default_line_spacing;
+    font_ui_small = Simp.get_font_at_size("fonts", "SEGOEUI.TTF", cast(int) (font_ui_small_size * dpi_scale));
+    // font_ui_small = Simp.get_font_at_size("fonts", "SEGUISB.TTF", cast(int) (font_ui_small_size * dpi_scale));
+    assert(font_ui_small != null, "Couldn't init main ui font\n");
+    font_ui_small_line_height = cast(float) font_ui.default_line_spacing;
 
-    // font_icons = Simp.get_font_at_size("fonts/font-awesome", "Font Awesome 6 Free-Solid-900.otf", cast(int) (font_icons_size * dpi_scale));
-    // assert(font_icons != null, "Couldn't init main icon font\n");
+    font_icons = Simp.get_font_at_size("fonts/font-awesome", "Font Awesome 6 Free-Solid-900.otf", cast(int) (font_icons_size * dpi_scale));
+    assert(font_icons != null, "Couldn't init main icon font\n");
 
-    // // WORKAROUND:
-    // // Make a dummy call with most common chars for each font so that
-    // // we have all the font atlases loaded in the GPU memory once
-    // COMMON_CHARS :: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ~!@#$%^&*()-|\"':;_+={}[]\\/`,.<>?АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчщъыьэюя";
-    // Simp.prepare_text(font,          COMMON_CHARS);
-    // Simp.prepare_text(font_ui,       COMMON_CHARS);
-    // Simp.prepare_text(font_ui_bold,  COMMON_CHARS);
-    // Simp.prepare_text(font_ui_small, COMMON_CHARS);
-    // // TODO: prepare icons as well
+    // WORKAROUND:
+    // Make a dummy call with most common chars for each font so that
+    // we have all the font atlases loaded in the GPU memory once
+    COMMON_CHARS :: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ~!@#$%^&*()-|\"':;_+={}[]\\/`,.<>?АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчщъыьэюя";
+    Simp.prepare_text(font,          COMMON_CHARS);
+    Simp.prepare_text(font_ui,       COMMON_CHARS);
+    Simp.prepare_text(font_ui_bold,  COMMON_CHARS);
+    Simp.prepare_text(font_ui_small, COMMON_CHARS);
+    // TODO: prepare icons as well
 }
 
 window_width : s32 = 1920;
 window_height : s32 = 1080;
 window : Window_Type;
+
+char_size:   float;
+line_height: float;
+
+LINE_HEIGHT_SCALE :: 1.2;
+
+WHEEL_SENSITIVITY :: 1.0;
+
+font      :  *Simp.Dynamic_Font;
+font_size := 14;
+
+font_ui      :  *Simp.Dynamic_Font;
+font_ui_bold :  *Simp.Dynamic_Font;
+font_ui_size := 16;
+font_ui_line_height: float;
+
+font_ui_small      :  *Simp.Dynamic_Font;
+font_ui_small_size := 15;
+font_ui_small_line_height: float;
+
+font_icons      : *Simp.Dynamic_Font;
+font_icons_size := 16;
+
+Mods :: Input.Event.Modifier_Flags;
 
 categories: [..] Category;
 
@@ -238,6 +269,7 @@ Transaction :: struct {
 }
 
 screen: Rect;  // contains the current working area rect for convenience
+dpi_scale := 1.0;
 
 mouse: Mouse_State;
 
@@ -275,3 +307,5 @@ Input :: #import "Input";
 #load "../libs/sqlite.jai";
 #load "csv.jai";
 #load "layout.jai";
+#load "draw.jai";
+#load "style.jai";
