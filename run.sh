@@ -1,1 +1,1 @@
-jai -import_dir /home/olga/projects/expenses/modules src/main.jai && src/main
+jai -quiet -import_dir /home/olga/projects/expenses/modules first.jai && ./expenses

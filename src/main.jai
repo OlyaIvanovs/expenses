@@ -1,85 +1,3 @@
-#import "Window_Creation";
-#import "Basic";
-#import "String";
-#import "Math";
-#import "File";
-Simp  :: #import "Simp_Ext";
-Input :: #import "Input";
-
-#load "../libs/sqlite.jai";
-#load "csv.jai";
-
-window_width : s32 = 1920;
-window_height : s32 = 1080;
-the_window : Window_Type;
-
-categories: [..] Category;
-
-Category :: struct {
-    id: int;
-    name: string;
-}
-
-Rect :: struct {
-    x, y: float;
-    w, h: float;
-}
-
-Transaction :: struct {
-    id: int;
-    date: string;
-    amount: float64;
-    details: string;
-    note: string;
-    category_id: int;
-}
-
-from_c_string ::(s: *u8) -> string {
-    count: s64 = 0;
-    q := s;
-    while <<q {
-        count += 1;
-        q += 1;
-    }
-
-    str: string = ---;
-    str.data = s;
-    str.count = count;
-
-    return str;
-}
-
-// print_db_documents ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
-//     new_context: Context;
-//     push_context new_context {
-//         columns: []*u8 = ---;
-//         columns.count = num_cols;
-//         columns.data = col_data;
-
-//         for columns {
-//             s := from_c_string(it);
-//             print("% ", s);
-//         }
-//         print("\n");
-//     } 
-//     return SQLITE_OK;
-// }
-
-add_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
-    new_context: Context;
-    push_context new_context {
-        assert(num_cols == 2);
-        ok: bool;
-
-        category := array_add(*categories);
-        category.id, ok = parse_int(*from_c_string(col_data[0]));
-        if !ok then log_error("Couldn't parse id from string");
-        category.name = copy_temporary_string(from_c_string(col_data[1]));
-    } 
-    return SQLITE_OK;
-}
-
-
 main :: () {
     db : sqlite3;
     err := sqlite3_open("db.sqlite", *db);
@@ -167,15 +85,30 @@ main :: () {
     //     log_error("Couldn't insert transactions: %\n", from_c_string(errmsg));
     // }    
 
-    the_window = create_window(window_width, window_height, "Expenses");
-    window_width, window_height = Simp.get_render_dimensions(the_window);
+    window = create_window(window_width, window_height, "Expenses");
+    window_width, window_height = Simp.get_render_dimensions(window);
 
-    Simp.set_render_target(the_window);
+    Simp.set_render_target(window);
 
     quit : bool;
 
     while !quit {
         Input.update_window_events();
+
+        for Input.get_window_resizes() {
+            Simp.update_window(it.window);
+            if (it.window == window) {
+                should_reinit := (it.width != window_width) || (it.height != window_height);
+                window_width = it.width;
+                window_height = it.height;
+                if should_reinit {
+                    screen    = make_rect(0, 0, window_width, window_height);
+                    // TODO: get dpi scale
+                    // dpi_scale = platform_get_dpi_scale(window);
+                    init_fonts();
+                }
+            }
+        }
 
         for Input.events_this_frame {
             if it.type == .QUIT {
@@ -203,23 +136,142 @@ draw_one_frame :: () {
     screen = make_rect(0, 0, xx window_width, xx window_height);
     // draw_rect(screen, color_red);
 
-    Simp.swap_buffers(the_window);
+    Simp.swap_buffers(window);
 }
 
-make_rect :: (x: float, y: float, width: float, height: float) -> Rect{
-    rect : Rect;
+from_c_string ::(s: *u8) -> string {
+    count: s64 = 0;
+    q := s;
+    while <<q {
+        count += 1;
+        q += 1;
+    }
 
-    rect.w = width;
-    rect.h = height;
-    rect.x = x;
-    rect.y = y;
+    str: string = ---;
+    str.data = s;
+    str.count = count;
 
-    return rect;
+    return str;
 }
 
-draw_rect :: (r: Rect, color: Vector4) {
-    using r;
-    Simp.set_shader_for_color();
-    Simp.immediate_quad(x, y, x + w, y + h, color);
+// print_db_documents ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+//     new_context: Context;
+//     push_context new_context {
+//         columns: []*u8 = ---;
+//         columns.count = num_cols;
+//         columns.data = col_data;
+
+//         for columns {
+//             s := from_c_string(it);
+//             print("% ", s);
+//         }
+//         print("\n");
+//     } 
+//     return SQLITE_OK;
+// }
+
+add_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+    new_context: Context;
+    push_context new_context {
+        assert(num_cols == 2);
+        ok: bool;
+
+        category := array_add(*categories);
+        category.id, ok = parse_int(*from_c_string(col_data[0]));
+        if !ok then log_error("Couldn't parse id from string");
+        category.name = copy_temporary_string(from_c_string(col_data[1]));
+    } 
+    return SQLITE_OK;
 }
 
+init_fonts :: () {
+    // font = Simp.get_font_at_size("fonts", "FiraCode-Retina.ttf", cast(int) (font_size * dpi_scale));
+    // assert(font != null, "Couldn't init main text font\n");
+    // char_size   = cast(float) font.em_width;
+    // old_line_height = line_height;
+    // line_height = cast(float) font.default_line_spacing * LINE_HEIGHT_SCALE;
+
+    // font_ui = Simp.get_font_at_size("fonts", "SEGOEUI.TTF", cast(int) (font_ui_size * dpi_scale));
+    // assert(font_ui != null, "Couldn't init main ui font\n");
+    // font_ui_line_height = cast(float) font_ui.default_line_spacing;
+
+    // font_ui_bold = Simp.get_font_at_size("fonts", "SEGUISB.TTF", cast(int) (font_ui_size * dpi_scale));
+    // assert(font_ui_bold != null, "Couldn't init bold ui font\n");
+
+    // font_ui_small = Simp.get_font_at_size("fonts", "SEGOEUI.TTF", cast(int) (font_ui_small_size * dpi_scale));
+    // // font_ui_small = Simp.get_font_at_size("fonts", "SEGUISB.TTF", cast(int) (font_ui_small_size * dpi_scale));
+    // assert(font_ui_small != null, "Couldn't init main ui font\n");
+    // font_ui_small_line_height = cast(float) font_ui.default_line_spacing;
+
+    // font_icons = Simp.get_font_at_size("fonts/font-awesome", "Font Awesome 6 Free-Solid-900.otf", cast(int) (font_icons_size * dpi_scale));
+    // assert(font_icons != null, "Couldn't init main icon font\n");
+
+    // // WORKAROUND:
+    // // Make a dummy call with most common chars for each font so that
+    // // we have all the font atlases loaded in the GPU memory once
+    // COMMON_CHARS :: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ~!@#$%^&*()-|\"':;_+={}[]\\/`,.<>?АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчщъыьэюя";
+    // Simp.prepare_text(font,          COMMON_CHARS);
+    // Simp.prepare_text(font_ui,       COMMON_CHARS);
+    // Simp.prepare_text(font_ui_bold,  COMMON_CHARS);
+    // Simp.prepare_text(font_ui_small, COMMON_CHARS);
+    // // TODO: prepare icons as well
+}
+
+window_width : s32 = 1920;
+window_height : s32 = 1080;
+window : Window_Type;
+
+categories: [..] Category;
+
+Category :: struct {
+    id: int;
+    name: string;
+}
+
+Transaction :: struct {
+    id: int;
+    date: string;
+    amount: float64;
+    details: string;
+    note: string;
+    category_id: int;
+}
+
+screen: Rect;  // contains the current working area rect for convenience
+
+mouse: Mouse_State;
+
+Mouse_State :: struct {
+    pointer: Vector2;
+    scroll_y_delta: s32;
+
+    left:   Mouse_Button_State;
+    right:  Mouse_Button_State;
+    middle: Mouse_Button_State;
+}
+
+Mouse_Button_State :: struct {
+    is_down:             bool;
+    is_dragging:         bool;
+    just_pressed:        bool;
+    just_released:       bool;
+    just_double_clicked: bool;
+
+    last_down_pos:  Vector2;
+    last_down_time: Time;
+}
+
+Time :: #type,isa float64;
+
+
+#import "Window_Creation";
+#import "Basic";
+#import "String";
+#import "Math";
+#import "File";
+Simp  :: #import "Simp_Ext";
+Input :: #import "Input";
+
+#load "../libs/sqlite.jai";
+#load "csv.jai";
+#load "layout.jai";
