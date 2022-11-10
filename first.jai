@@ -1,4 +1,4 @@
-#run build();
+  #run build();
 
 build :: () {
     options := get_build_options();
@@ -19,6 +19,15 @@ build :: () {
           case;
             compiler_report(tprint("Command-line argument #%, '%', is invalid. Valid options are: 'debug', 'release'.\n", it_index+1, arg));
         }
+    }
+
+
+    // print("Building dynamic library:\n");
+    // success := build_cpp_dynamic_lib("sqlite3", "libs/sqlite3.c");
+    success := build_cpp_static_lib("sqlite3", "libs/sqlite3.c", extra = .["/DSQLITE_API=__declspec(dllexport)"]);
+    if !success {
+        compiler_set_workspace_status(.FAILED);
+        return;
     }
 
     w := compiler_create_workspace(options.output_executable_name);
@@ -65,6 +74,7 @@ build :: () {
 
 #import "Compiler";
 #import "Basic";
+#import "BuildCpp";
 
 // #import "Ico_File";
 // #import "Windows_Resources";

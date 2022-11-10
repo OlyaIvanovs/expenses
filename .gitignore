@@ -1,3 +1,6 @@
 expenses
 *.sqlite
 .build/
+*.exe
+*.pdb
+*.dll

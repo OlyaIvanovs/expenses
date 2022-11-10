@@ -14,8 +14,10 @@ SQLITE_OK :: 0;
 
 #scope_file
 
-#if OS == .WINDOWS {
-    // sqlite :: #foreign_library "win/libcurl";
-} else #if OS == .LINUX {
-    sqlite :: #foreign_library "sqlite3";
-}
+sqlite :: #foreign_system_library "sqlite3";
+
+// #if OS == .WINDOWS {
+//     sqlite :: #foreign_library "./sqlite3";
+// } else #if OS == .LINUX {
+//     sqlite :: #foreign_library "sqlite3";
+// }
