@@ -21,13 +21,15 @@ build :: () {
         }
     }
 
-
-    // print("Building dynamic library:\n");
-    // success := build_cpp_dynamic_lib("sqlite3", "libs/sqlite3.c");
-    success := build_cpp_static_lib("sqlite3", "libs/sqlite3.c", extra = .["/DSQLITE_API=__declspec(dllexport)"]);
-    if !success {
-        compiler_set_workspace_status(.FAILED);
-        return;
+    if !file_exists("sqlite3.dll") {
+        print("Building dynamic library:\n");
+        success := build_cpp_dynamic_lib("sqlite3", "libs/sqlite3.c", extra = .["/DSQLITE_API=__declspec(dllexport)"]);
+        if !success {
+            compiler_set_workspace_status(.FAILED);
+            return;
+        }
+        // TODO: maybe build a static library instead
+        // success := build_cpp_static_lib("sqlite3", "libs/sqlite3.c", extra = .["/DSQLITE_API=__declspec(dllexport)"]);
     }
 
     w := compiler_create_workspace(options.output_executable_name);
@@ -56,7 +58,7 @@ build :: () {
 
     #if OS == .WINDOWS {
         // TODO: create icon when we have it
-        // exe_name := tprint("%.exe", options.output_executable_name);
+        exe_name := tprint("%.exe", options.output_executable_name);
 
         // ico_data := create_ico_file_from_bitmap_filename("images/focus.png");
         // success := set_icon_by_data(exe_name, ico_data);
@@ -64,17 +66,18 @@ build :: () {
         //     log_error("ERROR: Couldn't set icon for '%'\n", exe_name);
         // }
 
-        // manifest_options: Manifest_Options;
-        // success = add_manifest_to_executable(exe_name, manifest_options);
-        // if !success {
-        //     log_error("ERROR: Couldn't add manifest to executable '%'\n", exe_name);
-        // }
+        manifest_options: Manifest_Options;
+        success := add_manifest_to_executable(exe_name, manifest_options);
+        if !success {
+            log_error("ERROR: Couldn't add manifest to executable '%'\n", exe_name);
+        }
     }
 }
 
 #import "Compiler";
 #import "Basic";
 #import "BuildCpp";
+#import "File_Utilities"; 
 
 // #import "Ico_File";
-// #import "Windows_Resources";
+#import "Windows_Resources";

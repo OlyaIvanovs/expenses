@@ -1,4 +1,9 @@
 main :: () {
+    #if OS == .WINDOWS {
+        // Windows is very bad at thread-switching by default unless you do this. Sad.
+        timeBeginPeriod(1);
+    }
+
     db : sqlite3;
     err := sqlite3_open("db.sqlite", *db);
     defer sqlite3_close(db);
@@ -27,7 +32,7 @@ main :: () {
     result = sqlite3_exec(db, sql_select, add_category_from_db, null, *errmsg);
     if result != SQLITE_OK {
         log_error("ERROR: %\n",from_c_string(errmsg));
-    }                                                                     
+    }
     for categories print("%\n", it);
 
     // Open file and parse
@@ -38,7 +43,7 @@ main :: () {
     csv_file := read_csv("ex.csv", ",", 6, num_cols = 7);
     ok: bool;
     for row : csv_file.rows {
-        t := array_add(*transactions);    
+        t := array_add(*transactions);
         t.date = row.fields[1];
         t.amount, ok = parse_float64(*row.fields[6]);
         if !ok then log_error("Couldn't parse amount as float: %\n", row.fields[6]);
@@ -78,37 +83,30 @@ main :: () {
 
     query := builder_to_string(*query_builder);
     defer free(query);
-    // print("Query: \n%\n", query);
-
-    // result = sqlite3_exec(db, to_c_string(query), null, null, *errmsg);
-    // if result != SQLITE_OK {
-    //     log_error("Couldn't insert transactions: %\n", from_c_string(errmsg));
-    // }    
 
     window = create_window(window_width, window_height, "Expenses");
+    platform_maximize_window(window);
     window_width, window_height = Simp.get_render_dimensions(window);
+    print("Window %#v", window);
+    dpi_scale = platform_get_dpi_scale(window);
+    init_fonts();
 
+    screen  = make_rect(0, 0, window_width, window_height);
     Simp.set_render_target(window);
 
     quit : bool;
-
     while !quit {
         Input.update_window_events();
 
         for Input.get_window_resizes() {
             Simp.update_window(it.window);
             if (it.window == window) {
-
-                init_fonts();
-                screen  = make_rect(0, 0, window_width, window_height);
-
                 should_reinit := (it.width != window_width) || (it.height != window_height);
                 window_width = it.width;
                 window_height = it.height;
                 if should_reinit {
-                    screen    = make_rect(0, 0, window_width, window_height);
-                    // TODO: get dpi scale
-                    // dpi_scale = platform_get_dpi_scale(window);
+                    screen = make_rect(0, 0, window_width, window_height);
+                    dpi_scale = platform_get_dpi_scale(window);
                     init_fonts();
                 }
             }
@@ -131,6 +129,16 @@ main :: () {
         sleep_milliseconds(10);
         reset_temporary_storage();
     }
+}
+
+platform_maximize_window :: (window: Window_Type) {
+    ShowWindow(window, SW_MAXIMIZE);
+}
+
+platform_get_dpi_scale :: (window: Window_Type) -> float {
+    #assert OS == .WINDOWS;
+    dpi := cast(float) GetDpiForWindow(window);
+    return dpi / 96.0;
 }
 
 draw_one_frame :: () {
@@ -174,7 +182,7 @@ from_c_string ::(s: *u8) -> string {
 //             print("% ", s);
 //         }
 //         print("\n");
-//     } 
+//     }
 //     return SQLITE_OK;
 // }
 
@@ -188,7 +196,7 @@ add_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_name
         category.id, ok = parse_int(*from_c_string(col_data[0]));
         if !ok then log_error("Couldn't parse id from string");
         category.name = copy_temporary_string(from_c_string(col_data[1]));
-    } 
+    }
     return SQLITE_OK;
 }
 
@@ -295,7 +303,7 @@ Mouse_Button_State :: struct {
 
 Time :: #type,isa float64;
 
-
+#import "Windows";
 #import "Window_Creation";
 #import "Basic";
 #import "String";
@@ -309,3 +317,6 @@ Input :: #import "Input";
 #load "layout.jai";
 #load "draw.jai";
 #load "style.jai";
+
+user32 :: #foreign_system_library "user32";
+GetDpiForWindow :: (hWnd: HWND) -> u32 #foreign user32;
