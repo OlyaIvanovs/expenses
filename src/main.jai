@@ -4,7 +4,6 @@ main :: () {
         timeBeginPeriod(1);
     }
 
-    db : sqlite3;
     err := sqlite3_open("db.sqlite", *db);
     defer sqlite3_close(db);
 
@@ -35,6 +34,29 @@ main :: () {
     }
     for categories print("%\n", it);
 
+    spending_query :: "SELECT category_id, SUM(amount) FROM Transactions WHERE amount >= 0 AND transaction_date >= '2022/08/01' AND transaction_date < '2022/08/08' GROUP BY category_id;";
+    result = sqlite3_exec(db, spending_query, collect_spendings_from_db, null, *errmsg);
+    if result != SQLITE_OK {
+        log_error("ERROR: %\n",from_c_string(errmsg));
+    }
+    for daily_spendings print("%\n", it);
+
+    // Build graph values that includes category with 0 total_spent
+    for cat, i: categories {
+        g := array_add(*daily_spendings_graph);
+        g.category_id = cat.id;
+        for daily_spendings {
+            if it.category_id == cat.id {
+                g.total_spent = it.total_spent;
+                break;
+            }
+        }
+    }
+    g := array_add(*daily_spendings_graph); // Uncategorised spent
+    g.total_spent = daily_spendings[0].total_spent;
+
+    print("daily_spending_graphs %", daily_spendings_graph);
+
     // Open file and parse
     contents, success := read_entire_file("ex.csv");
     assert(success);
@@ -61,13 +83,6 @@ main :: () {
         }
     }
 
-    parse_float64 :: (line: *string) -> value:float64, success:bool {
-        token, ok := parse_token(line);
-        value: float64;
-        if ok value, ok = string_to_float64(token);
-        return value, ok;
-    }
-
     // for t : transactions print("%\n", t);
 
     query_builder: String_Builder;
@@ -83,11 +98,14 @@ main :: () {
 
     query := builder_to_string(*query_builder);
     defer free(query);
+    // result = sqlite3_exec(db, to_c_string(query), null, null, *errmsg);
+    // if result != SQLITE_OK {
+    //     log_error("ERROR: %\n",from_c_string(errmsg));
+    // }
 
     window = create_window(window_width, window_height, "Expenses");
     platform_maximize_window(window);
     window_width, window_height = Simp.get_render_dimensions(window);
-    print("Window %#v", window);
     dpi_scale = platform_get_dpi_scale(window);
     init_fonts();
 
@@ -96,6 +114,7 @@ main :: () {
 
     quit : bool;
     while !quit {
+        frame_time = cast(Time) get_time();
         Input.update_window_events();
 
         for Input.get_window_resizes() {
@@ -112,6 +131,8 @@ main :: () {
             }
         }
 
+        update_mouse_state();
+
         for Input.events_this_frame {
             if it.type == .QUIT {
                 quit = true;
@@ -126,6 +147,7 @@ main :: () {
         }
 
         draw_one_frame();
+        pointer_end_frame();
         sleep_milliseconds(10);
         reset_temporary_storage();
     }
@@ -141,20 +163,6 @@ platform_get_dpi_scale :: (window: Window_Type) -> float {
     return dpi / 96.0;
 }
 
-draw_one_frame :: () {
-    Simp.clear_render_target(.05, .08, .15, 1);
-
-    categories_rect := cut_left(screen, 500 * dpi_scale);
-    draw_rect(categories_rect, Colors.BACKGROUND_LIGHT);
-
-    // Print categories
-    for categories {
-        Simp.draw_text(font, xx (categories_rect.x + 10 * dpi_scale), xx (categories_rect.y + categories_rect.h - line_height * it_index), it.name, Colors.UI_DEFAULT);
-    }
-
-    Simp.swap_buffers(window);
-}
-
 from_c_string ::(s: *u8) -> string {
     count: s64 = 0;
     q := s;
@@ -168,6 +176,13 @@ from_c_string ::(s: *u8) -> string {
     str.count = count;
 
     return str;
+}
+
+parse_float64 :: (line: *string) -> value:float64, success:bool {
+    token, ok := parse_token(line);
+    value: float64;
+    if ok value, ok = string_to_float64(token);
+    return value, ok;
 }
 
 // print_db_documents ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
@@ -196,6 +211,21 @@ add_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_name
         category.id, ok = parse_int(*from_c_string(col_data[0]));
         if !ok then log_error("Couldn't parse id from string");
         category.name = copy_temporary_string(from_c_string(col_data[1]));
+    }
+    return SQLITE_OK;
+}
+
+collect_spendings_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+    new_context: Context;
+    push_context new_context {
+        assert(num_cols == 2);
+        ok: bool;
+
+        spending := array_add(*daily_spendings);
+        spending.category_id, ok = parse_int(*from_c_string(col_data[0]));
+        if !ok then log_error("Couldn't parse id from string");
+        spending.total_spent, ok = parse_float64(*from_c_string(col_data[1]));
+        if !ok then log_error("Couldn't parse amount from string");
     }
     return SQLITE_OK;
 }
@@ -230,6 +260,39 @@ init_fonts :: () {
     Simp.prepare_text(font_ui_bold,  COMMON_CHARS);
     Simp.prepare_text(font_ui_small, COMMON_CHARS);
     // TODO: prepare icons as well
+}
+
+key_state :: inline (key: Input.Key_Code) -> Input.Key_Current_State {
+    return Input.input_button_states[key];
+}
+
+update_mouse_state :: () {
+    x, y := get_mouse_pointer_position(window, false);
+    mouse.pointer.x = xx x;
+    mouse.pointer.y = xx (window_height - y);
+
+    update_button(*mouse.left,   .MOUSE_BUTTON_LEFT);
+    update_button(*mouse.right,  .MOUSE_BUTTON_RIGHT);
+    update_button(*mouse.middle, .MOUSE_BUTTON_MIDDLE);
+
+    update_button :: (button: *Mouse_Button_State, key: Input.Key_Code) {
+        button.is_down       = key_state(key) & .DOWN  != 0;  // NOTE: this doesn't include just_pressed!
+        button.just_pressed  = key_state(key) & .START != 0;
+        button.just_released = key_state(key) & .END   != 0;
+
+        if button.just_pressed {
+            time_from_last_click := frame_time - button.last_down_time;
+            distance_from_last_click := mouse.pointer - button.last_down_pos;
+            max_distance := max(abs(distance_from_last_click.x), abs(distance_from_last_click.y));
+            button.just_double_clicked = time_from_last_click < DOUBLE_CLICK_SPEED && max_distance < DOUBLE_CLICK_TOLERANCE;
+            button.last_down_pos  = mouse.pointer;
+            button.last_down_time = frame_time;
+        } else {
+            button.just_double_clicked = false;
+        }
+
+        button.is_dragging   = button.is_down && mouse.pointer != button.last_down_pos;
+    }
 }
 
 window_width : s32 = 1920;
@@ -267,6 +330,14 @@ Category :: struct {
     name: string;
 }
 
+daily_spendings: [..] Spending;
+daily_spendings_graph: [..] Spending;
+
+Spending :: struct {
+    category_id: int;
+    total_spent: float64;
+}
+
 Transaction :: struct {
     id: int;
     date: string;
@@ -279,7 +350,11 @@ Transaction :: struct {
 screen: Rect;  // contains the current working area rect for convenience
 dpi_scale := 1.0;
 
+frame_time: Time;
+
 mouse: Mouse_State;
+
+db : sqlite3;  // initialised at the start
 
 Mouse_State :: struct {
     pointer: Vector2;
@@ -317,6 +392,10 @@ Input :: #import "Input";
 #load "layout.jai";
 #load "draw.jai";
 #load "style.jai";
+#load "pointer_image.jai";
 
 user32 :: #foreign_system_library "user32";
 GetDpiForWindow :: (hWnd: HWND) -> u32 #foreign user32;
+
+DOUBLE_CLICK_SPEED     :: 0.3;  // how many seconds between clicks to consider it a double click
+DOUBLE_CLICK_TOLERANCE :: 2;    // how many pixels between the click locations are allowed
