@@ -27,34 +27,6 @@ draw_one_frame :: () {
     main_area = shrink(main_area, 50);
     draw_rect(main_area, Colors.BACKGROUND_HIGHLIGHT);
 
-    width_bar := 40 * dpi_scale;
-    for daily_spendings_graph {
-        r := make_rect(main_area.x + it_index * 2 * width_bar , main_area.y + 10 * dpi_scale, width_bar, xx it.total_spent * dpi_scale);
-        ui_id := cast(Ui_Id) (100 + it_index);
-        maybe_set_hot_or_active(ui_id, r, .PRESSABLE);
-        color := ifx ui.hot_last_frame == ui_id then Colors.BACKGROUND_BRIGHT else Colors.RED;
-        draw_rect(r, color);
-        if ui.hot_last_frame == ui_id {
-            s := tprint("%",it.total_spent);
-            Simp.draw_text(font, xx r.x, xx (r.y + r.h + 10 * dpi_scale), s, Colors.RED);
-        }
-    }
-
-    // for day : 1..31 {
-    //     errmsg : *u8;
-    //     result := sqlite3_exec(db, init_sql, null, null, *errmsg);
-    //     if result != SQLITE_OK {
-    //         log_error("ERROR: %\n",from_c_string(errmsg));
-    //     }
-    // }
-
-    // [
-    //     { date: 2022/01/02, food: 300, ljkldkf: 4534}
-    //     { date: 2022/01/02, food: 300, ljkldkf: 4534}
-    //     { date: 2022/01/02, food: 300, ljkldkf: 4534}
-    //     { date: 2022/01/02, food: 300, ljkldkf: 4534}
-    // ]
-
     // Reset UI state after drawing
     if !mouse.left.is_down || mouse.left.just_released {
         ui.active = .none;

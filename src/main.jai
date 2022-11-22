@@ -32,30 +32,10 @@ main :: () {
     if result != SQLITE_OK {
         log_error("ERROR: %\n",from_c_string(errmsg));
     }
-    for categories print("%\n", it);
+    // for categories print("%\n", it);
 
-    spending_query :: "SELECT category_id, SUM(amount) FROM Transactions WHERE amount >= 0 AND transaction_date >= '2022/08/01' AND transaction_date < '2022/08/08' GROUP BY category_id;";
-    result = sqlite3_exec(db, spending_query, collect_spendings_from_db, null, *errmsg);
-    if result != SQLITE_OK {
-        log_error("ERROR: %\n",from_c_string(errmsg));
-    }
-    for daily_spendings print("%\n", it);
-
-    // Build graph values that includes category with 0 total_spent
-    for cat, i: categories {
-        g := array_add(*daily_spendings_graph);
-        g.category_id = cat.id;
-        for daily_spendings {
-            if it.category_id == cat.id {
-                g.total_spent = it.total_spent;
-                break;
-            }
-        }
-    }
-    g := array_add(*daily_spendings_graph); // Uncategorised spent
-    g.total_spent = daily_spendings[0].total_spent;
-
-    print("daily_spending_graphs %", daily_spendings_graph);
+    daily_spendings, success_spendings := get_daily_spendings();
+    if !success_spendings return;
 
     // Open file and parse
     contents, success := read_entire_file("ex.csv");
@@ -215,21 +195,6 @@ add_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_name
     return SQLITE_OK;
 }
 
-collect_spendings_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
-    new_context: Context;
-    push_context new_context {
-        assert(num_cols == 2);
-        ok: bool;
-
-        spending := array_add(*daily_spendings);
-        spending.category_id, ok = parse_int(*from_c_string(col_data[0]));
-        if !ok then log_error("Couldn't parse id from string");
-        spending.total_spent, ok = parse_float64(*from_c_string(col_data[1]));
-        if !ok then log_error("Couldn't parse amount from string");
-    }
-    return SQLITE_OK;
-}
-
 init_fonts :: () {
     font = Simp.get_font_at_size("fonts", "FiraCode-Retina.ttf", cast(int) (font_size * dpi_scale));
     assert(font != null, "Couldn't init main text font\n");
@@ -330,9 +295,6 @@ Category :: struct {
     name: string;
 }
 
-daily_spendings: [..] Spending;
-daily_spendings_graph: [..] Spending;
-
 Spending :: struct {
     category_id: int;
     total_spent: float64;
@@ -389,6 +351,7 @@ Input :: #import "Input";
 
 #load "../libs/sqlite.jai";
 #load "csv.jai";
+#load "sql.jai";
 #load "layout.jai";
 #load "draw.jai";
 #load "style.jai";
