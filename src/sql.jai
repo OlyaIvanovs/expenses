@@ -22,17 +22,6 @@ get_daily_spendings :: () -> Daily_Spendings, bool {
         }
     }
     array_add(*week_indices, spendings.count);
-
-    for i : 0 .. week_indices.count - 2 {
-        start := week_indices[i];
-        end   := week_indices[i + 1];
-        num_spendings := end - start;
-        for spending : array_view(spendings, start, num_spendings) {
-            print("%: %\n", spending.category_id, spending.total_spent);
-        }
-        print("===============================\n");
-    }
-
     return daily_spendings, true;
 }
 

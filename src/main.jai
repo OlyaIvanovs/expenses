@@ -34,8 +34,9 @@ main :: () {
     }
     // for categories print("%\n", it);
 
-    daily_spendings, success_spendings := get_daily_spendings();
-    if !success_spendings return;
+    ok1: bool;
+    daily_spendings, ok1 = get_daily_spendings();
+    if !ok1 return;
 
     // Open file and parse
     contents, success := read_entire_file("ex.csv");
@@ -54,7 +55,7 @@ main :: () {
             t.category_id = 5;
         } else if contains_nocase(t.details, "pak n save") || contains_nocase(t.details, "countdown") {
             t.category_id = 1;
-        } else if contains_nocase(t.details, "pizza") || contains_nocase(t.details, "burger") {
+        } else if contains_nocase(t.details, "pizza") || contains_nocase(t.details, "Donalds") || contains_nocase(t.details, "KFC") || contains_nocase(t.details, "burger") || contains_nocase(t.details, "DOMINOS") {
             t.category_id = 3;
         } else if contains_nocase(t.details, "swim") {
             t.category_id = 6;
@@ -83,7 +84,8 @@ main :: () {
     //     log_error("ERROR: %\n",from_c_string(errmsg));
     // }
 
-    window = create_window(window_width, window_height, "Expenses");
+    window_x, window_y := platform_get_biggest_monitor_pos();
+    window = create_window(window_width, window_height, "Expenses", window_x, window_y);
     platform_maximize_window(window);
     window_width, window_height = Simp.get_render_dimensions(window);
     dpi_scale = platform_get_dpi_scale(window);
@@ -131,16 +133,6 @@ main :: () {
         sleep_milliseconds(10);
         reset_temporary_storage();
     }
-}
-
-platform_maximize_window :: (window: Window_Type) {
-    ShowWindow(window, SW_MAXIMIZE);
-}
-
-platform_get_dpi_scale :: (window: Window_Type) -> float {
-    #assert OS == .WINDOWS;
-    dpi := cast(float) GetDpiForWindow(window);
-    return dpi / 96.0;
 }
 
 from_c_string ::(s: *u8) -> string {
@@ -260,6 +252,13 @@ update_mouse_state :: () {
     }
 }
 
+panic :: (format_string: string, args: .. Any, exit_code : s32 = 1) {
+    log_error(format_string, ..args);
+    exit(exit_code);
+} @PrintLike
+
+daily_spendings: Daily_Spendings;
+
 window_width : s32 = 1920;
 window_height : s32 = 1080;
 window : Window_Type;
@@ -356,6 +355,7 @@ Input :: #import "Input";
 #load "draw.jai";
 #load "style.jai";
 #load "pointer_image.jai";
+#load "windows.jai";
 
 user32 :: #foreign_system_library "user32";
 GetDpiForWindow :: (hWnd: HWND) -> u32 #foreign user32;

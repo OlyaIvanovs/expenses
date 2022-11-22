@@ -23,9 +23,46 @@ draw_one_frame :: () {
         Simp.draw_text(font, xx (categories_rect.x + 10 * dpi_scale), xx (categories_rect.y + categories_rect.h - (line_height * (it_index + 1))), it.name, color);
     }
 
-    // Draw graph
-    main_area = shrink(main_area, 50);
-    draw_rect(main_area, Colors.BACKGROUND_HIGHLIGHT);
+    // Draw spendings
+    {
+        using daily_spendings;
+
+        main_area = shrink(main_area, 50);
+        draw_rect(main_area, Colors.BACKGROUND_HIGHLIGHT);
+
+        padding := 4 * dpi_scale;
+        bar_rect := cut_left(main_area, (main_area.w / 52) - padding);
+
+        for i : 0 .. week_indices.count - 2 {
+            start := week_indices[i];
+            end   := week_indices[i + 1];
+            num_spendings := end - start;
+            week_spendings := array_view(spendings, start, num_spendings);
+            weekly_total: float64;
+            for spending : week_spendings {
+                weekly_total += spending.total_spent;
+            }
+
+            // base rect
+            week_rect := bar_rect;
+            week_rect.x += i * (bar_rect.w + padding);
+            week_rect.h = xx (bar_rect.h * (weekly_total / 2000.0));
+            draw_rect(week_rect, Colors.RED);
+
+            // draw categories
+            y: float32;
+            c := Color.[Colors.GREEN, Colors.YELLOW, Colors.BLUE, Colors.CYAN];
+            for spending, i : week_spendings {
+                if i == 0 continue;
+                rect := week_rect;
+                rect.h = xx (week_rect.h * (spending.total_spent / weekly_total));
+                rect.y += y;
+                y += rect.h;
+                index := i % 4;
+                draw_rect(rect, c[index]);
+            }
+        }
+    }
 
     // Reset UI state after drawing
     if !mouse.left.is_down || mouse.left.just_released {
