@@ -16,6 +16,7 @@ Colors :: struct {
     BLUE                    :: Color.{ r = 0, g =0, b = 1};
     YELLOW                  :: Color.{ r = 1, g =1, b = 0};
     CYAN                    :: Color.{ r = 0, g =1, b = 1};
+
     BACKGROUND              :: Color.{ r = 0.086, g = 0.133, b = 0.165 };
     BACKGROUND_DARK         :: Color.{ r = 0.065, g = 0.101, b = 0.125 };
     BACKGROUND_HIGHLIGHT    :: Color.{ r = 0.097, g = 0.15, b = 0.185 };
@@ -27,13 +28,16 @@ Colors :: struct {
     SEARCH_RESULT_ACTIVE    :: Color.{ r = 0.559, g = 0.469, b = 0.184 };
     SEARCH_RESULT_INACTIVE  :: Color.{ r = 0.322, g = 0.302, b = 0.173 };
     SCROLLBAR               :: Color.{ r = 0.131, g = 0.202, b = 0.25, a = 0.3 };
-    SCROLLBAR_HOVER         :: Color.{ r = 0.131, g = 0.202, b = 0.25, a = 0.8 };
+    SCROLLBAR_HOVER         :: Color.{ r = 0.20, g = 0.80, b = 0.80, a = 0.3 };
     SCROLLBAR_BACKGROUND    :: Color.{ r = 0.065, g = 0.101, b = 0.125, a = 0.3 };
-    CURSOR                  :: Color.{ r = 0.2, g = 0.8, b = 0.8 };
+    CURSOR                  :: Color.{ r = 0.15, g = 0.7, b = 0.7 };
     CURSOR_INACTIVE         :: Color.{ r = 0.1, g = 0.4, b = 0.4 };
     PASTE_ANIMATION         :: Color.{ r = 0.11, g = 0.267, b = 0.29 };
     SPLITTER                :: Color.{ r = 0.131, g = 0.202, b = 0.25 };
     SPLITTER_HOVER          :: Color.{ r = 0.110, g = 0.267, b = 0.29 };
+
+    LIST_CURSOR_LITE        :: Color.{ r = 0.20, g = 0.80, b = 0.80, a = 0.1 };  // @TODO: do without alpha?
+    LIST_CURSOR             :: Color.{ r = 0.20, g = 0.80, b = 0.80, a = 0.3 };
 
     SHADOW_DARK         :: Color.{ r = 0.057, g = 0.089, b = 0.11, a = 0.5 };
     SHADOW_TRANSPARENT  :: Color.{ r = 0.057, g = 0.089, b = 0.11, a = 0 };  // for interpolation
@@ -49,7 +53,7 @@ Colors :: struct {
     CODE_TYPE           :: Color.{ r = 0.51, g = 0.67, b = 0.64, a = 1.0 };
     CODE_FUNCTION       :: Color.{ r = 0.67, g = 0.74, b = 0.49, a = 1.0 };
     CODE_PUNCTUATION    :: Color.{ r = 0.81, g = 0.77, b = 0.66, a = 1.0 };
-    CODE_STRING         :: Color.{ r = 0.85, g = 0.68, b = 0.33, a = 1.0 };
+    CODE_STRING         :: Color.{ r = 0.85, g = 0.77, b = 0.55, a = 1.0 };
     CODE_VALUE          :: Color.{ r = 0.84, g = 0.60, b = 0.71, a = 1.0 };
     CODE_HIGHLIGHT      :: Color.{ r = 0.85, g = 0.61, b = 0.46, a = 1.0 };
     CODE_ERROR          :: Color.{ r = 1.00, g = 0.00, b = 0.00, a = 1.0 };

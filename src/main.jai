@@ -85,7 +85,7 @@ main :: () {
     // }
 
     window_x, window_y := platform_get_biggest_monitor_pos();
-    window = create_window(window_width, window_height, "Expenses", window_x, window_y);
+    window = create_window(window_width, window_height, "Expenses", window_x, window_y, background_color_rgb = as_3_floats(Colors.BACKGROUND));
     platform_maximize_window(window);
     window_width, window_height = Simp.get_render_dimensions(window);
     dpi_scale = platform_get_dpi_scale(window);
@@ -288,6 +288,14 @@ font_icons_size := 16;
 Mods :: Input.Event.Modifier_Flags;
 
 categories: [..] Category;
+
+program_state: Program_State = .dashboard;
+
+Program_State :: enum {
+    dashboard;
+    something_else;
+    settings;
+}
 
 Category :: struct {
     id: int;
