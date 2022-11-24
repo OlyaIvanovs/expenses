@@ -1,3 +1,24 @@
+draw_tab :: (ui_id: Ui_Id, text: string, color: Color, t: Rect, left: bool) -> Rect{
+    margin := 10 * dpi_scale;
+    width := cast(float) Simp.prepare_text(font_ui_bold, text);
+
+    tab := cut_left(t, 200);
+    tab.w = width + margin * 2;
+    tab.h -= margin;
+    if left {
+        tab.x += margin;
+    } else {
+         tab.x = t.x + t.w - tab.w - margin;
+    }
+
+    draw_rect(tab, color);
+    pen := make_vector2(tab.x + margin, tab.y + (tab.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
+    Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+
+    return tab;
+}
+
+
 draw_one_frame :: () {
     {
         using Colors.BACKGROUND;
@@ -9,15 +30,27 @@ draw_one_frame :: () {
 
     // Draw tabs
     {
-        margin := 10 * dpi_scale;
-        tab := cut_left(tabs_rect, 200);
-        tab.x += margin;
-        tab.h -= margin;
-        draw_rect(tab, Colors.BACKGROUND);
+        // Dashboard tab
+        ui_tab_dashboard := get_ui_id_from_loc();
+        tab := draw_tab(ui_tab_dashboard, "Dashboard", Colors.BACKGROUND, tabs_rect, true);
 
-        tab.x = tabs_rect.x + tabs_rect.w - 50 - margin;
-        tab.w = 50;
-        draw_rect(tab, Colors.BACKGROUND);
+        // Mouse events
+        became_active := maybe_set_hot_or_active(ui_tab_dashboard, tabs_rect, .PRESSABLE);
+        if became_active then program_state = .dashboard;
+
+        // Settings tab
+        ui_tab_settings := get_ui_id_from_loc();
+        tab = draw_tab(ui_tab_dashboard, "Settings", Colors.BACKGROUND, tabs_rect, false);
+
+        // Mouse events
+        became_active = maybe_set_hot_or_active(ui_tab_settings, tab, .PRESSABLE);
+        if became_active then program_state = .settings;
+    }
+
+    if program_state == {
+        case .dashboard;        draw_dashboard(main_area);
+        // case .something_else;
+        case .settings;         draw_settings(main_area);
     }
 
     // categories_rect, main_area := cut_left(screen, 300 * dpi_scale);
@@ -95,6 +128,14 @@ draw_one_frame :: () {
     Simp.swap_buffers(window);
 }
 
+draw_dashboard :: (main_area: Rect) {
+    draw_rect(main_area, Colors.RED);
+}
+
+draw_settings :: (main_area: Rect) {
+    draw_rect(main_area, Colors.YELLOW);
+}
+
 draw_rect :: (rect: Rect, color: Color) {
     Simp.set_shader_for_color(enable_blend = true);
     draw_rect_raw(rect, color);
@@ -112,7 +153,6 @@ maybe_set_hot_or_active :: (ui_id: Ui_Id, rect: Rect, pointer_image: Pointer_Ima
     if !mouse_pointer_is_within(rect) return false;
 
     ui.hot = ui_id;
-    print("UI %\n", ui);
     if ui.hot_last_frame == ui_id || ui.active == ui_id then set_pointer_image(pointer_image);
     if ui.hot_last_frame == ui_id && ui.active == .none && mouse.left.just_pressed {
         ui.active = ui_id;
@@ -120,6 +160,21 @@ maybe_set_hot_or_active :: (ui_id: Ui_Id, rect: Rect, pointer_image: Pointer_Ima
     }
 
     return false;
+}
+
+get_ui_id_from_loc :: inline (loc := #caller_location, parent_id: Ui_Id = .none) -> Ui_Id {
+    if parent_id != .none {
+        return cast(Ui_Id) (loc.line_number + NUM_LINES_OF_CODE * cast(s64) parent_id);
+    }
+    return cast(Ui_Id) loc.line_number;
+}
+
+is_child :: (ui_id: Ui_Id, parent_id: Ui_Id) -> bool {
+    // A ui id is considered a child if it was obtained by the get_ui_id_from_loc function above
+    num := cast(s64) ui_id;
+    parent_min := cast(s64) parent_id * NUM_LINES_OF_CODE;
+    parent_max := parent_min + NUM_LINES_OF_CODE - 1;
+    return parent_min <= num && num <= parent_max;
 }
 
 Ui_Id :: enum s64 {
@@ -136,3 +191,6 @@ ui: struct {
     hot:    Ui_Id = .none;
     hot_last_frame: Ui_Id = .none;
 };
+
+// Please keep at the bottom - needed for ui elements parent-child relationships
+NUM_LINES_OF_CODE :: #run #location().line_number;
