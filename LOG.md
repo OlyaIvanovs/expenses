@@ -1,4 +1,4 @@
-What do we want?
+# What do we want?
 
 - Know how much was spent on each category each week/month/year/arbitrary date range?
 - How much money we have
@@ -12,13 +12,15 @@ What do we want?
     - (optional) Bar graph, where each bar is colored, displaying the percentage spent on each category that day/week/month
 
 
-TODO
+# TODO
+
 - Add category
     - category rules
     - category colour
 
 
-DONE
+# DONE
+
 + Open a window
 + Create a table
     + SQL query

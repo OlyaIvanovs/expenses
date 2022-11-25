@@ -1,24 +1,3 @@
-draw_tab :: (ui_id: Ui_Id, text: string, color: Color, t: Rect, left: bool) -> Rect{
-    margin := 10 * dpi_scale;
-    width := cast(float) Simp.prepare_text(font_ui_bold, text);
-
-    tab := cut_left(t, 200);
-    tab.w = width + margin * 2;
-    tab.h -= margin;
-    if left {
-        tab.x += margin;
-    } else {
-         tab.x = t.x + t.w - tab.w - margin;
-    }
-
-    draw_rect(tab, color);
-    pen := make_vector2(tab.x + margin, tab.y + (tab.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
-    Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
-
-    return tab;
-}
-
-
 draw_one_frame :: () {
     {
         using Colors.BACKGROUND;
@@ -30,21 +9,41 @@ draw_one_frame :: () {
 
     // Draw tabs
     {
+        margin := 10 * dpi_scale;
+        tabs_rect = shrink_x(tabs_rect, margin);
+        tabs_rect.h -= margin;
+                
         // Dashboard tab
-        ui_tab_dashboard := get_ui_id_from_loc();
-        tab := draw_tab(ui_tab_dashboard, "Dashboard", Colors.BACKGROUND, tabs_rect, true);
-
-        // Mouse events
-        became_active := maybe_set_hot_or_active(ui_tab_dashboard, tabs_rect, .PRESSABLE);
-        if became_active then program_state = .dashboard;
-
+        {
+            ui_id := get_ui_id_from_loc();
+            
+            width := cast(float) Simp.prepare_text(font_ui_bold, "Dashboard");
+            tab_rect := cut_left(tabs_rect, width + margin * 2); 
+            
+            became_active := maybe_set_hot_or_active(ui_id, tab_rect, .PRESSABLE);
+            if became_active then program_state = .dashboard;
+            
+            draw_rect(tab_rect, Colors.BACKGROUND);
+            
+            pen := make_vector2(tab_rect.x + margin, tab_rect.y + (tab_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
+            Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+        }
+        
         // Settings tab
-        ui_tab_settings := get_ui_id_from_loc();
-        tab = draw_tab(ui_tab_dashboard, "Settings", Colors.BACKGROUND, tabs_rect, false);
-
-        // Mouse events
-        became_active = maybe_set_hot_or_active(ui_tab_settings, tab, .PRESSABLE);
-        if became_active then program_state = .settings;
+        {
+            ui_id := get_ui_id_from_loc();
+            
+            width := cast(float) Simp.prepare_text(font_ui_bold, "Settings");
+            tab_rect := cut_right(tabs_rect, width + margin * 2); 
+            
+            became_active := maybe_set_hot_or_active(ui_id, tab_rect, .PRESSABLE);
+            if became_active then program_state = .settings;
+            
+            draw_rect(tab_rect, Colors.BACKGROUND);
+            
+            pen := make_vector2(tab_rect.x + margin, tab_rect.y + (tab_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
+            Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+        }
     }
 
     if program_state == {
@@ -52,69 +51,6 @@ draw_one_frame :: () {
         // case .something_else;
         case .settings;         draw_settings(main_area);
     }
-
-    // categories_rect, main_area := cut_left(screen, 300 * dpi_scale);
-    // // upload_button_wrapper : Rect;
-    // // upload_button_wrapper, categories_rect = cut_top(categories_rect, 50 * dpi_scale);
-    // // upload_button := shrink_y(shrink_x(upload_button_wrapper, 100 * dpi_scale), 12 * dpi_scale);
-
-    // draw_rect(categories_rect, Colors.BACKGROUND_LIGHT);
-
-    // // maybe_set_hot_or_active(.upload_button, upload_button, .PRESSABLE);
-
-    // // button_color := ifx ui.hot_last_frame == .upload_button then Colors.BACKGROUND_HIGHLIGHT else Colors.BACKGROUND_LIGHT;
-    // // if ui.active == .upload_button {
-    // //     button_color = Colors.RED;
-    // // }
-    // // draw_rect(upload_button, button_color);
-
-    // // Print categories
-    // for categories {
-    //     ui_id := cast(Ui_Id) (100 + it_index);
-    //     color := ifx ui.hot_last_frame == ui_id then Colors.RED else Colors.UI_DEFAULT;
-    //     Simp.draw_text(font, xx (categories_rect.x + 10 * dpi_scale), xx (categories_rect.y + categories_rect.h - (line_height * (it_index + 1))), it.name, color);
-    // }
-
-    // // Draw spendings
-    // {
-    //     using daily_spendings;
-
-    //     main_area = shrink(main_area, 50);
-    //     draw_rect(main_area, Colors.BACKGROUND_HIGHLIGHT);
-
-    //     padding := 4 * dpi_scale;
-    //     bar_rect := cut_left(main_area, (main_area.w / 52) - padding);
-
-    //     for i : 0 .. week_indices.count - 2 {
-    //         start := week_indices[i];
-    //         end   := week_indices[i + 1];
-    //         num_spendings := end - start;
-    //         week_spendings := array_view(spendings, start, num_spendings);
-    //         weekly_total: float64;
-    //         for spending : week_spendings {
-    //             weekly_total += spending.total_spent;
-    //         }
-
-    //         // base rect
-    //         week_rect := bar_rect;
-    //         week_rect.x += i * (bar_rect.w + padding);
-    //         week_rect.h = xx (bar_rect.h * (weekly_total / 2000.0));
-    //         draw_rect(week_rect, Colors.RED);
-
-    //         // draw categories
-    //         y: float32;
-    //         c := Color.[Colors.GREEN, Colors.YELLOW, Colors.BLUE, Colors.CYAN];
-    //         for spending, i : week_spendings {
-    //             if i == 0 continue;
-    //             rect := week_rect;
-    //             rect.h = xx (week_rect.h * (spending.total_spent / weekly_total));
-    //             rect.y += y;
-    //             y += rect.h;
-    //             index := i % 4;
-    //             draw_rect(rect, c[index]);
-    //         }
-    //     }
-    // }
 
     // Reset UI state after drawing
     if !mouse.left.is_down || mouse.left.just_released {
@@ -129,7 +65,55 @@ draw_one_frame :: () {
 }
 
 draw_dashboard :: (main_area: Rect) {
-    draw_rect(main_area, Colors.RED);
+    categories_rect, main_area := cut_left(main_area, 300 * dpi_scale);
+
+    draw_rect(categories_rect, Colors.BACKGROUND_LIGHT);
+
+    // Print categories
+    for categories {
+        Simp.draw_text(font, xx (categories_rect.x + 10 * dpi_scale), xx (categories_rect.y + categories_rect.h - (line_height * (it_index + 1))), it.name, Colors.UI_DEFAULT);
+    }
+
+    // Draw spendings
+    {
+        using daily_spendings;
+
+        main_area = shrink(main_area, 50);
+        draw_rect(main_area, Colors.BACKGROUND_HIGHLIGHT);
+
+        padding := 4 * dpi_scale;
+        bar_rect := cut_left(main_area, (main_area.w / 52) - padding);
+
+        for i : 0 .. week_indices.count - 2 {
+            start := week_indices[i];
+            end   := week_indices[i + 1];
+            num_spendings := end - start;
+            week_spendings := array_view(spendings, start, num_spendings);
+            weekly_total: float64;
+            for spending : week_spendings {
+                weekly_total += spending.total_spent;
+            }
+
+            // base rect
+            week_rect := bar_rect;
+            week_rect.x += i * (bar_rect.w + padding);
+            week_rect.h = xx (bar_rect.h * (weekly_total / 2000.0));
+            draw_rect(week_rect, Colors.RED);
+
+            // draw categories
+            y: float32;
+            c := Color.[Colors.GREEN, Colors.YELLOW, Colors.BLUE, Colors.CYAN];
+            for spending, i : week_spendings {
+                if i == 0 continue;
+                rect := week_rect;
+                rect.h = xx (week_rect.h * (spending.total_spent / weekly_total));
+                rect.y += y;
+                y += rect.h;
+                index := i % 4;
+                draw_rect(rect, c[index]);
+            }
+        }
+    }
 }
 
 draw_settings :: (main_area: Rect) {
