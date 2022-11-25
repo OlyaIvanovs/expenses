@@ -12,37 +12,55 @@ draw_one_frame :: () {
         margin := 10 * dpi_scale;
         tabs_rect = shrink_x(tabs_rect, margin);
         tabs_rect.h -= margin;
-                
+
         // Dashboard tab
         {
             ui_id := get_ui_id_from_loc();
-            
+
             width := cast(float) Simp.prepare_text(font_ui_bold, "Dashboard");
-            tab_rect := cut_left(tabs_rect, width + margin * 2); 
-            
+            tab_rect := cut_left(tabs_rect, width + margin * 2);
+
             became_active := maybe_set_hot_or_active(ui_id, tab_rect, .PRESSABLE);
             if became_active then program_state = .dashboard;
-            
-            draw_rect(tab_rect, Colors.BACKGROUND);
-            
+            color := Colors.BACKGROUND;
+            if program_state == .dashboard {
+                color = Colors.BACKGROUND_LIGHT;
+            }
+
+            draw_rect(tab_rect, color);
+
+            text_color := Colors.UI_DEFAULT;
+            if program_state == .settings {
+                text_color = Colors.UI_DIM;
+            }
             pen := make_vector2(tab_rect.x + margin, tab_rect.y + (tab_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
-            Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+            Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, text_color);
         }
-        
+
         // Settings tab
         {
             ui_id := get_ui_id_from_loc();
-            
+
             width := cast(float) Simp.prepare_text(font_ui_bold, "Settings");
-            tab_rect := cut_right(tabs_rect, width + margin * 2); 
-            
+            tab_rect := cut_right(tabs_rect, width + margin * 2);
+
+            color := Colors.BACKGROUND;
             became_active := maybe_set_hot_or_active(ui_id, tab_rect, .PRESSABLE);
             if became_active then program_state = .settings;
-            
-            draw_rect(tab_rect, Colors.BACKGROUND);
-            
+
+            if program_state == .settings {
+                color = Colors.BACKGROUND_LIGHT;
+            }
+
+            draw_rect(tab_rect, color);
+
+            text_color := Colors.UI_DEFAULT;
+            if program_state == .dashboard {
+                text_color = Colors.UI_DIM;
+            }
+
             pen := make_vector2(tab_rect.x + margin, tab_rect.y + (tab_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
-            Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+            Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, text_color);
         }
     }
 
@@ -66,7 +84,6 @@ draw_one_frame :: () {
 
 draw_dashboard :: (main_area: Rect) {
     categories_rect, main_area := cut_left(main_area, 300 * dpi_scale);
-
     draw_rect(categories_rect, Colors.BACKGROUND_LIGHT);
 
     // Print categories
@@ -117,7 +134,33 @@ draw_dashboard :: (main_area: Rect) {
 }
 
 draw_settings :: (main_area: Rect) {
-    draw_rect(main_area, Colors.YELLOW);
+    categories_rect, main_area := cut_left(main_area, 300 * dpi_scale);
+    draw_rect(categories_rect, Colors.BACKGROUND_LIGHT);
+
+    title_rect : Rect;
+    title_rect, categories_rect = cut_top(categories_rect, 50 * dpi_scale);
+    draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
+
+    title_bottomline := title_rect;
+    title_bottomline.h = 3 * dpi_scale;
+    draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
+
+    width := cast(float) Simp.prepare_text(font_ui_bold, "Categories");
+    pen := make_vector2((title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
+    Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+
+    // Print categories
+    rect : Rect;
+    for categories {
+        rect, categories_rect = cut_top(categories_rect, 36 * dpi_scale);
+        draw_rect(rect, Colors.BACKGROUND_LIGHT);
+        width := cast(float) Simp.prepare_text(font, it.name);
+        pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
+        Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+        bottomline := rect;
+        bottomline.h = 1 * dpi_scale;
+        draw_rect(bottomline, Colors.SELECTION_ACTIVE);
+    }
 }
 
 draw_rect :: (rect: Rect, color: Color) {
