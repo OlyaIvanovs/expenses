@@ -115,16 +115,26 @@ main :: () {
 
         update_mouse_state();
 
-        for Input.events_this_frame {
-            if it.type == .QUIT {
-                quit = true;
-            }
-            if it.type == .KEYBOARD {
-                if it.key_pressed == 0 continue;
+        for event : Input.events_this_frame {
+            if event.type == {
+                case .QUIT;  quit = true;
+                
+                case .KEYBOARD;
+                    if event.key_pressed == 0 continue;
 
-                if it.key_code == .ESCAPE {
-                    quit = true;
-                }
+                    if event.key_code == .ESCAPE {
+                        quit = true;
+                    }
+                    
+                    // TMP
+                    text_input_handle_keypress(*text_input, event.key_code, event.modifier_flags);
+                    
+                case .TEXT_INPUT;
+                    char := cast,trunc(u8) event.utf32;
+                    if char > 31 && char < 127 {
+                        // TMP
+                        text_input_type_char(*text_input, char);
+                    }
             }
         }
 
@@ -289,7 +299,7 @@ Mods :: Input.Event.Modifier_Flags;
 
 categories: [..] Category;
 
-program_state: Program_State = .dashboard;
+program_state: Program_State = .settings;
 
 Program_State :: enum {
     dashboard;
@@ -362,8 +372,10 @@ Input :: #import "Input";
 #load "layout.jai";
 #load "draw.jai";
 #load "style.jai";
+#load "utils.jai";
 #load "pointer_image.jai";
 #load "windows.jai";
+#load "widgets/text_input.jai";
 
 user32 :: #foreign_system_library "user32";
 GetDpiForWindow :: (hWnd: HWND) -> u32 #foreign user32;

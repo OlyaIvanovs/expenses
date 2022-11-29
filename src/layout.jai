@@ -146,6 +146,7 @@ mouse_pointer_is_within :: inline (rect: Rect) -> bool {
     return point_within(mouse.pointer, rect);
 }
 
+// Project the point onto a rect's side
 snap_to_rect :: (point: Vector2, using rect: Rect) -> Vector2 {
     p := point;
 
@@ -155,6 +156,17 @@ snap_to_rect :: (point: Vector2, using rect: Rect) -> Vector2 {
     if p.y > y + h then p.y = y + h;
 
     return p;
+}
+
+snap_to_grid :: (rect: Rect) -> Rect {
+    r := rect;
+    
+    r.x = floor(r.x);
+    r.y = floor(r.y);
+    r.w = floor(r.w);
+    r.h = floor(r.h);
+    
+    return r;
 }
 
 Rect :: struct {
