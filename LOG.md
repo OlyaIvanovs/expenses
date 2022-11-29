@@ -14,10 +14,22 @@
 
 # TODO
 
-- Add category
-    - category rules
-    - category colour
+- Text input:
+    - Move cursor
+    - Implement del and backspace
+    - Implement selection
+    - Scroll 
+    - Various shortcuts
+    - Mouse support
 
+- Adding categories:
+    + Draw on paper what the UI will look like
+    + List all categories
+    - Draw an add button (or an input right away)
+    - Add a category
+    - Be able to choose color
+    - Be able to add rules
+    
 
 # DONE
 

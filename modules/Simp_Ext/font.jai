@@ -25,9 +25,6 @@ Dynamic_Font :: struct {
     face: FT_Face;
     glyph_lookup: Table(int, *Glyph_Data);
 
-    character_range_low:  int;
-    character_range_high: int;
-
     character_height:       int;
     default_line_spacing:   int;
     max_ascender:           int;
@@ -72,6 +69,26 @@ Loaded_Font :: struct {
     data: [] u8;
 };
 
+// For code rendering
+Code_Range :: struct {
+    start, end: s32;  // in bytes
+}
+
+Code_Color :: enum u8 {
+    DEFAULT;
+    COMMENT;
+    TYPE;
+    KEYWORD;
+    VALUE_KEYWORD;
+    VALUE;
+    FUNCTION;
+    PUNCTUATION;
+    STRING;
+    ERROR;
+
+    NUM_COLORS;
+}
+
 init_fonts :: (_page_size_x: s32 = -1, _page_size_y: s32 = -1) {
     assert(!fonts_initted);
 
@@ -112,6 +129,9 @@ convert_to_temporary_glyphs :: (font: *Dynamic_Font, s: string) -> width_in_pixe
 
     if !s return 0;
 
+    use_kerning := FT_HAS_KERNING(font.face);
+    prev_glyph: u32 = 0;
+
     width_in_pixels := 0;
 
     t := s.data;
@@ -124,15 +144,117 @@ convert_to_temporary_glyphs :: (font: *Dynamic_Font, s: string) -> width_in_pixe
 
             width_in_pixels += glyph.advance;
 
+            if use_kerning && prev_glyph {
+                delta: FT_Vector = ---;
+                error := FT_Get_Kerning(font.face, prev_glyph, glyph.glyph_index_within_font, xx FT_Kerning_Mode.DEFAULT, *delta);
+                if !error then width_in_pixels += (delta.x >> 6);
+            }
+
             // FreeType returns glyph index 0 for undefined glyphs... just signal
             // the condition that this happened.
             if glyph.glyph_index_within_font == 0 font.glyph_conversion_failed = true;
         }
 
         t = unicode_next_character(t);
+        prev_glyph = glyph.glyph_index_within_font;
     }
 
     return width_in_pixels;
+}
+
+draw_code :: (font: *Dynamic_Font, x: s64, y: s64, char_size: float, line_height: float, visible_lines: [] Code_Range, whole_code: [] u8, colors: [] Code_Color, color_map: [] Vector4) {
+    assert(whole_code.count == colors.count);
+
+    // Setup OpenGL stuff. We do it all in one place because it's easier and there will be only one backend - GL.
+    // Otherwise we would have to create temporary glyphs and pass them on to the backend draw function.
+    // Hope I'm not trashing my i-cache by not doing this
+    CheckInit();
+    set_shader_for_text();
+    glBlendFunc(GL_SRC1_COLOR, GL_ONE_MINUS_SRC1_COLOR);
+    glEnable(GL_BLEND);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    last_texture: GLuint = 0xFFFFFFFF;
+
+    sy := cast(float) y;
+
+    // Draw all lines
+    for visible_lines {
+        line: string = ---;
+        line.data  = whole_code.data + it.start;
+        line.count = it.end - it.start;
+
+        sx := cast(float) x;
+
+        // Draw one line
+        t := line.data;
+        while t < line.data + line.count {
+            // Convert current char to glyph
+            utf32 := character_utf8_to_utf32(t, line.data + line.count - t);
+            glyph := find_or_create_glyph(font, utf32);
+            assert(glyph != null, "find_or_create_glyph returned null");
+            assert(glyph.page != null, "glyph has no font page");
+
+            texture := *glyph.page.texture;
+            if glyph.page.dirty {
+                glyph.page.dirty = false;
+                texture_load_from_bitmap(texture, glyph.page.bitmap_data);
+            }
+
+            if texture.gl_handle != last_texture {
+                immediate_flush();
+                last_texture = texture.gl_handle;
+
+                shader := state.current_shader;
+                loc := glGetUniformLocation(shader.gl_handle, "text_sampler");
+                if loc < 0  log_error("Unable to find text_sampler in shader_text!");
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, texture.gl_handle);  // Bind handle to slot 0.
+                glUniform1i(loc, 0);
+            }
+
+            // Draw glyph
+            {
+                x1 := sx + cast(float) glyph.offset_x;
+                x2 := x1 + cast(float) glyph.width;
+
+                y2 := sy + cast(float) glyph.ascent;
+                y1 := y2 - cast(float) glyph.height;
+
+                sx += char_size;
+
+                // Create quad
+                quad: Font_Quad = ---;
+                quad.glyph = glyph;
+                quad.p0.x  = x1;
+                quad.p1.x  = x2;
+                quad.p2.x  = x2;
+                quad.p3.x  = x1;
+                quad.p0.y  = y1;
+                quad.p1.y  = y1;
+                quad.p2.y  = y2;
+                quad.p3.y  = y2;
+
+                quad.u0 = glyph.x0 / cast(float) texture.width;
+                quad.u1 = (cast(float) glyph.x0 + glyph.width) / texture.width;
+                quad.v0 = glyph.y0 / cast(float) texture.height;
+                quad.v1 = (cast(float) glyph.y0 + glyph.height) / texture.height;
+
+                color := colors[it.start + t - line.data];
+                immediate_letter_quad(quad, color_map[color]);
+            }
+
+            t = unicode_next_character(t);
+        }
+
+        sy -= line_height;
+    }
+
+    immediate_flush();
+
+    glDisable(GL_BLEND);
 }
 
 set_unknown_character :: (font: *Dynamic_Font, utf32: u32) -> bool {
@@ -193,7 +315,7 @@ load_font_part_2 :: (result: *Dynamic_Font, pixel_height: int) {
         if !success  success = set_unknown_character(result, 0x2022);  // BULLET
         if !success  success = set_unknown_character(result, #char "?");
         if !success {
-            log_error("Unable to set unknown character for font '%1'.\n", basename);
+            log_error("Unable to set unknown character for font '%'.\n", basename);
         }
     }
 
@@ -291,9 +413,41 @@ get_font_at_size :: (path: string, name: string, pixel_height: int) -> *Dynamic_
     // return font;
 }
 
-prepare_text :: (font: *Dynamic_Font, text: string) -> (width: s64) {
+prepare_text :: (font: *Dynamic_Font, text: string) -> width: s64 {
     width := convert_to_temporary_glyphs(font, text);
     return width;
+}
+
+// Like prepare_text, but it doesn't create any temporary glyphs
+// (useful for finding the cursor position within text)
+get_text_width :: (font: *Dynamic_Font, s: string) -> width: s64 {
+    if !s return 0;
+
+    use_kerning := FT_HAS_KERNING(font.face);
+    prev_glyph: u32 = 0;
+
+    width_in_pixels := 0;
+
+    t := s.data;
+    while t < s.data + s.count {
+        utf32 := character_utf8_to_utf32(t, s.data + s.count - t);
+        glyph := find_or_create_glyph(font, utf32);
+
+        if glyph {
+            width_in_pixels += glyph.advance;
+
+            if use_kerning && prev_glyph {
+                delta: FT_Vector = ---;
+                error := FT_Get_Kerning(font.face, prev_glyph, glyph.glyph_index_within_font, xx FT_Kerning_Mode.DEFAULT, *delta);
+                if !error then width_in_pixels += (delta.x >> 6);
+            }
+        }
+
+        t = unicode_next_character(t);
+        prev_glyph = glyph.glyph_index_within_font;
+    }
+
+    return width_in_pixels;
 }
 
 generate_quads_for_prepared_text :: (font: *Dynamic_Font, x: s64, y: s64) {
@@ -302,13 +456,28 @@ generate_quads_for_prepared_text :: (font: *Dynamic_Font, x: s64, y: s64) {
     array_reset_keeping_memory(*font.current_quads);
     array_reserve(*font.current_quads, font.temporary_glyphs.count);
 
+    // @Speed: we don't need kerning for most of the text
+    use_kerning := FT_HAS_KERNING(font.face);
+
     sx := cast(float) x;
     sy := cast(float) y;
+
+    prev_glyph: u32 = 0;
 
     // @Speed!
     for info: font.temporary_glyphs {
         if !info.page continue;
         map := *info.page.texture;
+
+        if use_kerning && prev_glyph {
+            delta: FT_Vector = ---;
+            error := FT_Get_Kerning(font.face, prev_glyph, info.glyph_index_within_font, xx FT_Kerning_Mode.DEFAULT, *delta);
+            if !error {
+                sx += cast(float) (delta.x >> 6);
+            } else {
+                log_error("Couldn't get kerning for glyphs %, %\n", prev_glyph, info.glyph_index_within_font);
+            }
+        }
 
         sx1 := sx  + cast(float) info.offset_x;
         sx2 := sx1 + cast(float) info.width;
@@ -335,6 +504,7 @@ generate_quads_for_prepared_text :: (font: *Dynamic_Font, x: s64, y: s64) {
         array_add(*font.current_quads, quad);
         sx += cast(float) info.advance;
 
+        prev_glyph = info.glyph_index_within_font;
     }
 }
 

@@ -408,14 +408,14 @@ immediate_triangle :: (p0: Vector3, p1: Vector3, p2: Vector3,
     put_vertex(*v[2], p2, c3, normal, uv2.x, uv2.y);
 }
 
-immediate_triangle_fan :: (base: Vector2, points: [] Vector2, color: Vector4) {
+immediate_triangle_fan :: (base: Vector2, points: [] Vector2, color: Vector4, base_color: Vector4) {
     assert(points.count >= 2);
     num_triangles := points.count - 1;
     CheckSpace(cast(s32) num_triangles * 3);
     for i : 0..num_triangles-1 {
-        put_vertex(*v[i*3],     base,          color, 0, 0);
-        put_vertex(*v[i*3 + 1], points[i],     color, 0, 0);
-        put_vertex(*v[i*3 + 2], points[i + 1], color, 0, 0);
+        put_vertex(*v[i*3],     base,          base_color, 0, 0);
+        put_vertex(*v[i*3 + 1], points[i],     color,      0, 0);
+        put_vertex(*v[i*3 + 2], points[i + 1], color,      0, 0);
     }
 }
 
@@ -436,6 +436,25 @@ immediate_set_2d_projection :: (render_target_width: s32, render_target_height: 
     set_parameter(shader, "projection", m);
 }
 
+immediate_letter_quad :: (using quad: Font_Quad, color: Vector4) {
+    // NOTE(Ivan): not sure why it was here, leaving commented for now
+    // if glyph.page.bitmap_data.width <= 1 || glyph.page.bitmap_data.height <= 1 return;
+
+    CheckSpace(6);
+
+    // Shrinking the quad to a third of its width (for subpixel rendering)
+    // Note that we're keeping uv's the same
+    p1_ := p0 + (p1 - p0) / 3;
+    p2_ := p3 + (p2 - p3) / 3;
+
+    put_vertex(*v[0], p0 , color,  u0, v0);
+    put_vertex(*v[1], p1_, color,  u1, v0);
+    put_vertex(*v[2], p2_, color,  u1, v1);
+
+    put_vertex(*v[3], p0 , color,  u0, v0);
+    put_vertex(*v[4], p2_, color,  u1, v1);
+    put_vertex(*v[5], p3 , color,  u0, v1);
+}
 
 
 #scope_module

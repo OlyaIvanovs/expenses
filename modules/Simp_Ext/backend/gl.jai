@@ -24,6 +24,12 @@ backend_init :: (info: *Window_Info) {
             the_gl_context = hglrc;
             the_hdc_for_pixel_format_cloning = hdc;
             info.specific.hdc = hdc;
+
+            // NOTE: when I enabled vsync this way, the program started feeling terrible
+            // _wglSwapIntervalEXT : (interval: s32) -> BOOL #foreign;
+            // _wglSwapIntervalEXT = xx wglGetProcAddress("wglSwapIntervalEXT");
+            // vsync := _wglSwapIntervalEXT(1); // enable vsync
+            // if !vsync then log_error("Couldn't enable vsync\n");
         }
         #if OS == .LINUX {
             the_gl_context, the_gl_fbc = glx_create_context(MINIMUM_GL_MAJOR_VERSION, MINIMUM_GL_MINOR_VERSION);
@@ -355,25 +361,6 @@ draw_generated_quads :: (font: *Dynamic_Font, color := Vector4.{1, 1, 1, 1}) {
 
     glBlendFunc(GL_SRC1_COLOR, GL_ONE_MINUS_SRC1_COLOR);
     glEnable(GL_BLEND);
-    glEnable(GL_TEXTURE_2D);
-
-    draw_letter_quad :: (quad: Font_Quad, color: Vector4) {
-        page := quad.glyph.page;
-
-        if page.bitmap_data.width  <= 1 return;
-        if page.bitmap_data.height <= 1 return;
-
-        // @Speed: Get rid of these silly make_vector2s.
-        using quad;
-        uv0 := make_vector2(u0, v0);
-        uv1 := make_vector2(u1, v0);
-        uv2 := make_vector2(u1, v1);
-        uv3 := make_vector2(u0, v1);
-
-        // Shrinking the quad to a third of its size (for subpixel rendering)
-        // Note that we're keeping uv's the same
-        immediate_quad(p0, p0 + (p1 - p0) / 3, p3 + (p2 - p3) / 3, p3, color, uv0, uv1, uv2, uv3);
-    }
 
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 0);
 
@@ -407,14 +394,13 @@ draw_generated_quads :: (font: *Dynamic_Font, color := Vector4.{1, 1, 1, 1}) {
             glUniform1i(loc, 0);
         }
 
-        draw_letter_quad(quad, color);
+        immediate_letter_quad(quad, color);
     }
 
     // Same as above. This is BS
     immediate_flush();
 
     glDisable(GL_BLEND);
-    glDisable(GL_TEXTURE_2D);
 }
 
 #scope_module
@@ -642,6 +628,8 @@ backend_update_texture :: (texture: *Texture, bitmap: *Bitmap) {
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(texture_target, 0, xx internal_format, xx bitmap.width, xx bitmap.height, 0, gl_format, gl_type, bitmap.data.data);
+    // print("Updating texture %. Size: % x %, format: % \n", texture.gl_handle, bitmap.width, bitmap.height, gl_format);
+    // glFlush();
 
     //    resource_size := update_texture_2d(map, compressed, gl_format, gl_type, bittexture.data);
     //    assert (texture.resource_size == xx resource_size);
