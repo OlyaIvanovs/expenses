@@ -15,10 +15,10 @@
 # TODO
 
 - Text input:
-    - Move cursor
-    - Implement del and backspace
+    + Move cursor
+    + Implement del and backspace
     - Implement selection
-    - Scroll 
+    - Scroll
     - Various shortcuts
     - Mouse support
 
@@ -29,7 +29,7 @@
     - Add a category
     - Be able to choose color
     - Be able to add rules
-    
+
 
 # DONE
 
