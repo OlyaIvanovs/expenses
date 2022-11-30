@@ -118,17 +118,17 @@ main :: () {
         for event : Input.events_this_frame {
             if event.type == {
                 case .QUIT;  quit = true;
-                
+
                 case .KEYBOARD;
                     if event.key_pressed == 0 continue;
 
                     if event.key_code == .ESCAPE {
                         quit = true;
                     }
-                    
+
                     // TMP
                     text_input_handle_keypress(*text_input, event.key_code, event.modifier_flags);
-                    
+
                 case .TEXT_INPUT;
                     char := cast,trunc(u8) event.utf32;
                     if char > 31 && char < 127 {

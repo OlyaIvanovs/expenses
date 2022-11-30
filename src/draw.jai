@@ -135,7 +135,7 @@ draw_dashboard :: (main_area: Rect) {
 
 draw_settings :: (main_area: Rect) {
     draw_rect(main_area, Colors.BACKGROUND_LIGHT);
-    categories_rect, main_area := cut_left(main_area, 300 * dpi_scale); 
+    categories_rect, main_area := cut_left(main_area, 300 * dpi_scale);
 
     title_rect : Rect;
     title_rect, categories_rect = cut_top(categories_rect, 50 * dpi_scale);
@@ -162,9 +162,9 @@ draw_settings :: (main_area: Rect) {
         bottomline.h = 1 * dpi_scale;
         draw_rect(bottomline, Colors.SELECTION_ACTIVE);
     }
-    
+
     padding := 4 * dpi_scale;  // TODO: make global?
-    
+
     input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
     input_rect := cut_top(main_area, input_height);
     input_rect.x += 30;  // @tmp
@@ -175,29 +175,39 @@ draw_settings :: (main_area: Rect) {
 
 draw_text_input :: (using text_input: Text_Input, input_rect: Rect, loc := #caller_location) {
     ui_id := get_ui_id_from_loc(loc);
-    
+
     rect := snap_to_grid(input_rect);
     draw_rect(rect, Colors.BACKGROUND_DARK);
     rect = shrink(rect, 1);
     draw_rect(rect, Colors.BACKGROUND);
-    
+
     became_active := maybe_set_hot_or_active(ui_id, rect, .TEXT_SELECT);
     // TODO: when activated, make it so that the keyboard events are sent to the input
-    
+
     padding := 4 * dpi_scale;  // GLOBAL??
-    
+
     cursor_rect := make_rect(
         rect.x + padding + Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos)),
-        rect.y + (rect.h - font_ui.default_line_spacing) / 2.0, 
-        2 * dpi_scale, 
+        rect.y + (rect.h - font_ui.default_line_spacing) / 2.0,
+        2 * dpi_scale,
         cast(float)font_ui.default_line_spacing,
     );
     draw_rect(cursor_rect, Colors.CURSOR);
-    
+
+    if cursor.pos != cursor.sel {
+        sel_rect := make_rect(
+            rect.x + padding + Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos)),
+            rect.y + (rect.h - font_ui.character_height) / 2.0,
+            cast(float)Simp.prepare_text(font_ui, slice(to_string(text), cursor.pos, (cursor.sel - cursor.pos))),
+            cast(float)font_ui.character_height
+        );
+        draw_rect(sel_rect, Colors.SELECTION_ACTIVE);
+    }
+
     x := rect.x + padding;
     y := rect.y + (rect.h - font_ui.character_height) / 2.0 + 2 * dpi_scale;
     Simp.draw_text(font_ui, xx x, xx y, to_string(text), Colors.UI_DEFAULT);
-    
+
 }
 
 draw_rect :: (rect: Rect, color: Color) {

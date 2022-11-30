@@ -1,17 +1,23 @@
 text_input_handle_keypress :: (using text_input: *Text_Input, key_code: Input.Key_Code, mods: Mods) {
     if key_code == {
         case .ARROW_RIGHT;
-            cursor.pos += 1;
-            if cursor.pos > text.count then cursor.pos = cast(s32) text.count;
+            if mods.ctrl_pressed {
+                cursor.sel += 1;
+            } else {
+                cursor.pos += 1;
+                cursor.sel = cursor.pos;
+            }
         case .ARROW_LEFT;
             cursor.pos -= 1;
-            if cursor.pos < 0 then cursor.pos = 0;
+            cursor.sel = cursor.pos;
         case .BACKSPACE;
             if cursor.pos > 0 {
                 cursor.pos -= 1;
                 array_ordered_remove_by_index(*text, cursor.pos);
             }
     }
+    cursor.pos = clamp(cursor.pos, 0, xx (text.count));
+    cursor.sel = clamp(cursor.sel, 0, xx (text.count));
 }
 
 
