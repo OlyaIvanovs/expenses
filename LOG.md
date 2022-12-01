@@ -1,4 +1,4 @@
-# What do we want?
+# What do wPe want?
 
 - Know how much was spent on each category each week/month/year/arbitrary date range?
 - How much money we have
@@ -17,7 +17,13 @@
 - Text input:
     + Move cursor
     + Implement del and backspace
-    - Implement selection
+    + Implement selection
+    - When text is selected:
+        + Typing anything replaces selection
+        + Pressing left removes the selection and moves the cursor to the left of the selection
+        + Same for the right
+    - Copy/paste/cut (module Clipboard)
+        - Paste replaces selection
     - Scroll
     - Various shortcuts
     - Mouse support

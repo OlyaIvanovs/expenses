@@ -186,6 +186,17 @@ draw_text_input :: (using text_input: Text_Input, input_rect: Rect, loc := #call
 
     padding := 4 * dpi_scale;  // GLOBAL??
 
+    if cursor.pos != cursor.sel {
+        sel_start := min(cursor.pos, cursor.sel);
+        sel_rect := make_rect(
+            rect.x + padding + Simp.prepare_text(font_ui, slice(to_string(text), 0, sel_start)),
+            rect.y + (rect.h - font_ui.character_height) / 2.0,
+            cast(float)Simp.prepare_text(font_ui, slice(to_string(text), sel_start, abs(cursor.sel - cursor.pos))),
+            cast(float)font_ui.character_height
+        );
+        draw_rect(sel_rect, Colors.SELECTION_ACTIVE);
+    }
+    
     cursor_rect := make_rect(
         rect.x + padding + Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos)),
         rect.y + (rect.h - font_ui.default_line_spacing) / 2.0,
@@ -193,16 +204,6 @@ draw_text_input :: (using text_input: Text_Input, input_rect: Rect, loc := #call
         cast(float)font_ui.default_line_spacing,
     );
     draw_rect(cursor_rect, Colors.CURSOR);
-
-    if cursor.pos != cursor.sel {
-        sel_rect := make_rect(
-            rect.x + padding + Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos)),
-            rect.y + (rect.h - font_ui.character_height) / 2.0,
-            cast(float)Simp.prepare_text(font_ui, slice(to_string(text), cursor.pos, (cursor.sel - cursor.pos))),
-            cast(float)font_ui.character_height
-        );
-        draw_rect(sel_rect, Colors.SELECTION_ACTIVE);
-    }
 
     x := rect.x + padding;
     y := rect.y + (rect.h - font_ui.character_height) / 2.0 + 2 * dpi_scale;
