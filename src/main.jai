@@ -357,6 +357,12 @@ Mouse_Button_State :: struct {
 
 Time :: #type,isa float64;
 
+only_ctrl_pressed :: inline (mods: Mods) -> bool { return mods.packed == MODS_CTRL_ONLY; }
+only_alt_pressed  :: inline (mods: Mods) -> bool { return mods.packed == MODS_ALT_ONLY; }
+
+MODS_CTRL_ONLY :: #run Mods.{ ctrl_pressed = true }.packed;
+MODS_ALT_ONLY  :: #run Mods.{ alt_pressed  = true }.packed;
+
 #import "Windows";
 #import "Window_Creation";
 #import "Basic";
@@ -365,6 +371,7 @@ Time :: #type,isa float64;
 #import "File";
 Simp  :: #import "Simp_Ext";
 Input :: #import "Input";
+Clipboard :: #import "Clipboard";
 
 #load "../libs/sqlite.jai";
 #load "csv.jai";

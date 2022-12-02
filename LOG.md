@@ -18,14 +18,20 @@
     + Move cursor
     + Implement del and backspace
     + Implement selection
-    - When text is selected:
+    + When text is selected:
         + Typing anything replaces selection
         + Pressing left removes the selection and moves the cursor to the left of the selection
         + Same for the right
-    - Copy/paste/cut (module Clipboard)
-        - Paste replaces selection
+    + Copy/paste (module Clipboard)
+        + Paste replaces selection
+    + Cut
+    + Del
+    + Home
+    + End
     - Scroll
-    - Various shortcuts
+    - Various shortcuts:
+        + Ctrl A to select all
+        - Ctrl + Arrows to move by word
     - Mouse support
 
 - Adding categories:

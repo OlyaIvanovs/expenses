@@ -180,6 +180,9 @@ draw_text_input :: (using text_input: Text_Input, input_rect: Rect, loc := #call
     draw_rect(rect, Colors.BACKGROUND_DARK);
     rect = shrink(rect, 1);
     draw_rect(rect, Colors.BACKGROUND);
+    
+    push_scissor(rect);
+    defer pop_scissor();
 
     became_active := maybe_set_hot_or_active(ui_id, rect, .TEXT_SELECT);
     // TODO: when activated, make it so that the keyboard events are sent to the input
@@ -252,6 +255,34 @@ is_child :: (ui_id: Ui_Id, parent_id: Ui_Id) -> bool {
     return parent_min <= num && num <= parent_max;
 }
 
+push_scissor :: (rect: Rect) {
+    set_scissor(rect);
+    array_add(*scissor_stack, rect);
+}
+
+pop_scissor :: () {
+    assert(scissor_stack.count > 0);
+    pop(*scissor_stack);
+    if scissor_stack {
+        last := peek(scissor_stack);
+        set_scissor(last);
+    } else {
+        Simp.clear_scissor();
+    }
+}
+
+set_scissor :: (rect: Rect) {
+    x0 := cast(s32) rect.x;
+    y0 := cast(s32) rect.y;
+    x1 := cast(s32) (rect.x + rect.w);
+    y1 := cast(s32) (rect.y + rect.h);
+    Simp.set_scissor(x0, y0, max(x0, x1), max(y0, y1));
+}
+
+#scope_file
+
+scissor_stack: [..] Rect;
+
 Ui_Id :: enum s64 {
     unavailable :: -2;
     none        :: -1;
@@ -268,9 +299,9 @@ ui: struct {
 };
 
 
-
-
 // !!!!!!!!!!!!!!!!!!!!!! TEMPORARY !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#scope_export
 
 text_input: Text_Input;
 
