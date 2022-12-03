@@ -180,7 +180,7 @@ draw_text_input :: (using text_input: Text_Input, input_rect: Rect, loc := #call
     draw_rect(rect, Colors.BACKGROUND_DARK);
     rect = shrink(rect, 1);
     draw_rect(rect, Colors.BACKGROUND);
-    
+
     push_scissor(rect);
     defer pop_scissor();
 
@@ -199,13 +199,15 @@ draw_text_input :: (using text_input: Text_Input, input_rect: Rect, loc := #call
         );
         draw_rect(sel_rect, Colors.SELECTION_ACTIVE);
     }
-    
+
     cursor_rect := make_rect(
         rect.x + padding + Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos)),
         rect.y + (rect.h - font_ui.default_line_spacing) / 2.0,
         2 * dpi_scale,
         cast(float)font_ui.default_line_spacing,
     );
+    v := get_animation_value(scroll_anim);
+    cursor_rect.x = rect.x + padding + Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos+v));
     draw_rect(cursor_rect, Colors.CURSOR);
 
     x := rect.x + padding;

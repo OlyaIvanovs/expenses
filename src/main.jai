@@ -357,6 +357,8 @@ Mouse_Button_State :: struct {
 
 Time :: #type,isa float64;
 
+MAX_FRAME_DT :: 1.0 / 60;
+
 only_ctrl_pressed :: inline (mods: Mods) -> bool { return mods.packed == MODS_CTRL_ONLY; }
 only_alt_pressed  :: inline (mods: Mods) -> bool { return mods.packed == MODS_ALT_ONLY; }
 
