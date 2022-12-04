@@ -170,10 +170,10 @@ draw_settings :: (main_area: Rect) {
     input_rect.x += 30;  // @tmp
     input_rect.y -= 30;
     input_rect.w = 300;
-    draw_text_input(text_input, input_rect);
+    draw_text_input(*text_input, input_rect);
 }
 
-draw_text_input :: (using text_input: Text_Input, input_rect: Rect, loc := #caller_location) {
+draw_text_input :: (using text_input: *Text_Input, input_rect: Rect, loc := #caller_location) {
     ui_id := get_ui_id_from_loc(loc);
 
     rect := snap_to_grid(input_rect);
@@ -187,32 +187,43 @@ draw_text_input :: (using text_input: Text_Input, input_rect: Rect, loc := #call
     became_active := maybe_set_hot_or_active(ui_id, rect, .TEXT_SELECT);
     // TODO: when activated, make it so that the keyboard events are sent to the input
 
+    // Maybe scroll
+    if scroll_x != scroll_anim.target {
+        redraw_requested = true;
+        scroll_x = get_animation_value(scroll_anim);
+    }
+
     padding := 4 * dpi_scale;  // GLOBAL??
+
+    // Check if the cursor reaches the end on the right
+    to_scroll := cast(s32) (Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos)) - (rect.w - 2 * padding));
+    if to_scroll > 0 {
+        start_animation(*scroll_anim, scroll_x, to_scroll, snappy = true);
+    }
+
+    text_start_x := rect.x + padding - scroll_x;
 
     if cursor.pos != cursor.sel {
         sel_start := min(cursor.pos, cursor.sel);
         sel_rect := make_rect(
-            rect.x + padding + Simp.prepare_text(font_ui, slice(to_string(text), 0, sel_start)),
-            rect.y + (rect.h - font_ui.character_height) / 2.0,
+            text_start_x + Simp.prepare_text(font_ui, slice(to_string(text), 0, sel_start)),
+            rect.y + (rect.h - font_ui.default_line_spacing) / 2.0,
             cast(float)Simp.prepare_text(font_ui, slice(to_string(text), sel_start, abs(cursor.sel - cursor.pos))),
-            cast(float)font_ui.character_height
+            cast(float)font_ui.default_line_spacing,
         );
         draw_rect(sel_rect, Colors.SELECTION_ACTIVE);
     }
 
     cursor_rect := make_rect(
-        rect.x + padding + Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos)),
+        text_start_x + Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos)),
         rect.y + (rect.h - font_ui.default_line_spacing) / 2.0,
         2 * dpi_scale,
         cast(float)font_ui.default_line_spacing,
     );
-    v := get_animation_value(scroll_anim);
-    cursor_rect.x = rect.x + padding + Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos+v));
     draw_rect(cursor_rect, Colors.CURSOR);
 
-    x := rect.x + padding;
     y := rect.y + (rect.h - font_ui.character_height) / 2.0 + 2 * dpi_scale;
-    Simp.draw_text(font_ui, xx x, xx y, to_string(text), Colors.UI_DEFAULT);
+    Simp.draw_text(font_ui, xx text_start_x, xx y, to_string(text), Colors.UI_DEFAULT);
 
 }
 

@@ -1,25 +1,25 @@
 text_input_handle_keypress :: (using text_input: *Text_Input, key_code: Input.Key_Code, mods: Mods) {
     if key_code == {
         case .ARROW_RIGHT;
-            start_animation(*scroll_anim, cursor.pos, 15);
             if cursor.sel != cursor.pos && !mods.shift_pressed {
                 cursor.pos = max(cursor.pos, cursor.sel);
-            } else if only_ctrl_pressed(mods) && cursor.pos != text.count {
-                arr : []u8 = ---;
-                arr.data = text.data + cursor.pos;
-                arr.count = text.count - cursor.pos;
-                ok, pos := array_find(arr, #char " ");
-                if pos == 0 {
-                    arr.data += 1;
-                    arr.count -= 1;
-                    ok, pos = array_find(arr, #char " ");
-                    if pos == -1 {
-                        pos = text.count - cursor.pos;
-                    } else {
-                        pos += 1;
-                    }
-                }
-                cursor.pos += cast(s32) pos;
+            // TODO: jump by word
+            // } else if mods.ctrl_pressed && cursor.pos != text.count {
+                // arr : []u8 = ---;
+                // arr.data = text.data + cursor.pos;
+                // arr.count = text.count - cursor.pos;
+                // ok, pos := array_find(arr, #char " ");
+                // if pos == 0 {
+                //     arr.data += 1;
+                //     arr.count -= 1;
+                //     ok, pos = array_find(arr, #char " ");
+                //     if pos == -1 {
+                //         pos = text.count - cursor.pos;
+                //     } else {
+                //         pos += 1;
+                //     }
+                // }
+                // cursor.pos += cast(s32) pos;
             } else {
                 cursor.pos += 1;
             }
@@ -82,13 +82,16 @@ text_input_handle_keypress :: (using text_input: *Text_Input, key_code: Input.Ke
                 if cursor.sel != cursor.pos {
                     copy_text := slice(to_string(text), min(cursor.pos, cursor.sel), abs(cursor.sel - cursor.pos));
                     Clipboard.os_clipboard_set_text(copy_text);
+                    array_remove_slice(*text, min(cursor.pos, cursor.sel), abs(cursor.pos - cursor.sel));
                     cursor.pos = min(cursor.pos, cursor.sel);
-                    array_remove_slice(*text, cursor.pos, abs(cursor.pos - cursor.sel));
                     cursor.sel = cursor.pos;
                 }
             }
         case .DELETE;
-            if cursor.sel != cursor.pos {
+            if cursor.pos < text.count && cursor.sel == cursor.pos{
+                array_ordered_remove_by_index(*text, cursor.pos);
+                cursor.sel = cursor.pos;
+            } else if cursor.sel != cursor.pos {
                 cursor.pos = min(cursor.pos, cursor.sel);
                 array_remove_slice(*text, cursor.pos, abs(cursor.pos - cursor.sel));
                 cursor.sel = cursor.pos;
@@ -126,14 +129,14 @@ Tween_Animation :: struct(T: Type) {
     start: T;
     target: T;
     started_at: Time;
-    speed: float;
+    speed: Time;
 }
 
-start_animation :: (anim: *Tween_Animation($T), current: T, target: T, speed: Time = cast(Time) 0.7, $snappy := false) {
+start_animation :: (anim: *Tween_Animation($T), current: T, target: T, speed: Time = cast(Time) 0.1, $snappy := false) {
     anim.start  = current;
     anim.target = target;
     anim.started_at = frame_time;
-    anim.speed = cast(float) speed;
+    anim.speed = speed;
 
     #if snappy {
         // Pretend the animation started last frame so we start moving right away
@@ -145,7 +148,6 @@ start_animation :: (anim: *Tween_Animation($T), current: T, target: T, speed: Ti
 }
 
 get_animation_value :: (using anim: Tween_Animation($T)) -> T {
-    t := cast(float) (frame_time - started_at) / speed;
+    t := cast(float) ((frame_time - started_at) / speed);
     if t >= 1 || t < 0 return target;
-    return start + cast(T) (cast(float)(target - start) * t);
-}
+    return start + cast(T) (cast(float)(target - start) * t);}

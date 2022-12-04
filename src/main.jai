@@ -96,6 +96,9 @@ main :: () {
 
     quit : bool;
     while !quit {
+        if !redraw_requested platform_wait_message();
+        redraw_requested = false;
+        
         frame_time = cast(Time) get_time();
         Input.update_window_events();
 
@@ -112,9 +115,9 @@ main :: () {
                 }
             }
         }
-
+        
         update_mouse_state();
-
+        
         for event : Input.events_this_frame {
             if event.type == {
                 case .QUIT;  quit = true;
@@ -330,6 +333,7 @@ screen: Rect;  // contains the current working area rect for convenience
 dpi_scale := 1.0;
 
 frame_time: Time;
+redraw_requested := true;
 
 mouse: Mouse_State;
 

@@ -24,14 +24,16 @@
         + Same for the right
     + Copy/paste (module Clipboard)
         + Paste replaces selection
-    + Cut
-    + Del
     + Home
     + End
-    - Scroll
+    + Cut
     - Various shortcuts:
         + Ctrl A to select all
         - Ctrl + Arrows to move by word
+    + Del
+    - Scroll:
+        - When the cursor reaches the end on the right, start a snappy animation
+        - Same on the left
     - Mouse support
 
 - Adding categories:
