@@ -187,18 +187,41 @@ draw_text_input :: (using text_input: *Text_Input, input_rect: Rect, loc := #cal
     became_active := maybe_set_hot_or_active(ui_id, rect, .TEXT_SELECT);
     // TODO: when activated, make it so that the keyboard events are sent to the input
 
+    padding := 4 * dpi_scale;  // GLOBAL??
+
+    // 1. Given current scroll_x, calculate cursor_x and check if it's within allowed boundaries
+    // 2. If outside the boundaries, calculate new target for the cursor so that it reaches the closest allowed position
+    // 3. Only when the calculated target doesn't match the current target do we start a new animation
+
+    current_pos := Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos));
+    final_pos := Simp.prepare_text(font_ui, to_string(text));
+    rect_w := cast(s64) rect.w - 3 * padding;
+    if (current_pos >= xx scroll_x && current_pos <= xx (scroll_x + rect_w)) { // Check  boundaries
+        if scroll_x > 0 && xx (final_pos - scroll_x) < rect_w {
+            to_scroll := cast(s32) 0;
+            if to_scroll != scroll_anim.target {
+                start_animation(*scroll_anim, scroll_x, to_scroll, snappy = true);
+            }
+        }
+    } else {
+        to_scroll := cast(s32) current_pos; // if current_pos < scroll_x
+        if current_pos > xx rect_w then to_scroll = cast(s32) (current_pos - rect_w);
+        if to_scroll != scroll_anim.target {
+            start_animation(*scroll_anim, scroll_x, to_scroll, snappy = true);
+        }
+    }S
+
     // Maybe scroll
     if scroll_x != scroll_anim.target {
         redraw_requested = true;
         scroll_x = get_animation_value(scroll_anim);
     }
 
-    padding := 4 * dpi_scale;  // GLOBAL??
-
-    // Check if the cursor reaches the end on the right
-    to_scroll := cast(s32) (Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos)) - (rect.w - 2 * padding));
-    if to_scroll > 0 {
-        start_animation(*scroll_anim, scroll_x, to_scroll, snappy = true);
+    // Maybe set cursor on mouse click
+    if mouse_pointer_is_within(rect) && mouse.left.is_down {
+        rel_x := cast(s64) (mouse.pointer.x - (rect.x + padding)) + scroll_x;
+        cursor.pos = Simp.get_cursor_pos_for_width(font_ui, to_string(text), rel_x);
+        if !shift_pressed() then cursor.sel = cursor.pos;
     }
 
     text_start_x := rect.x + padding - scroll_x;

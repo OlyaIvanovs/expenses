@@ -450,6 +450,40 @@ get_text_width :: (font: *Dynamic_Font, s: string) -> width: s64 {
     return width_in_pixels;
 }
 
+get_cursor_pos_for_width :: (font: *Dynamic_Font, s: string, width: s64) -> pos: s32 {
+    if !s return 0;
+
+    use_kerning := FT_HAS_KERNING(font.face);
+    prev_glyph: u32 = 0;
+
+    current_pos: s32 = 0;
+    width_in_pixels := 0;
+
+    t := s.data;
+    while t < s.data + s.count {
+        utf32 := character_utf8_to_utf32(t, s.data + s.count - t);
+        glyph := find_or_create_glyph(font, utf32);
+
+        if glyph {
+            width_in_pixels += glyph.advance;
+
+            if use_kerning && prev_glyph {
+                delta: FT_Vector = ---;
+                error := FT_Get_Kerning(font.face, prev_glyph, glyph.glyph_index_within_font, xx FT_Kerning_Mode.DEFAULT, *delta);
+                if !error then width_in_pixels += (delta.x >> 6);
+            }
+        }
+
+        t = unicode_next_character(t);
+        prev_glyph = glyph.glyph_index_within_font;
+        
+        if width_in_pixels >= width break;
+        current_pos += 1;
+    }
+
+    return current_pos;
+}
+
 generate_quads_for_prepared_text :: (font: *Dynamic_Font, x: s64, y: s64) {
     assert(font != null);
 

@@ -29,12 +29,18 @@
     + Cut
     - Various shortcuts:
         + Ctrl A to select all
-        - Ctrl + Arrows to move by word
+        - Ctrl + Arrows to move by 5 letters at a time
     + Del
-    - Scroll:
-        - When the cursor reaches the end on the right, start a snappy animation
-        - Same on the left
+    + Scroll:
+        + When the cursor reaches the end on the right, start a snappy animation
+        + Same on the left
+    - Replace prepare_text with get_text_width where we only need the width and nothing else
     - Mouse support
+        + Modify Simp so that it returns character position based on provided width
+        + Clicking to set cursor pos
+        - Fix the left bias
+        - Dragging to select (no shift required)
+        - Continue dragging even if outside the rect
 
 - Adding categories:
     + Draw on paper what the UI will look like

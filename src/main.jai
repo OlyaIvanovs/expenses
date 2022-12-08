@@ -369,6 +369,14 @@ only_alt_pressed  :: inline (mods: Mods) -> bool { return mods.packed == MODS_AL
 MODS_CTRL_ONLY :: #run Mods.{ ctrl_pressed = true }.packed;
 MODS_ALT_ONLY  :: #run Mods.{ alt_pressed  = true }.packed;
 
+shift_pressed :: inline () -> bool {
+    return key_state(.SHIFT) & .DOWN != 0;
+}
+
+ctrl_pressed :: inline () -> bool {
+    return key_state(.CTRL) & .DOWN != 0;
+}
+
 #import "Windows";
 #import "Window_Creation";
 #import "Basic";
