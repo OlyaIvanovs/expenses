@@ -193,23 +193,27 @@ draw_text_input :: (using text_input: *Text_Input, input_rect: Rect, loc := #cal
     // 2. If outside the boundaries, calculate new target for the cursor so that it reaches the closest allowed position
     // 3. Only when the calculated target doesn't match the current target do we start a new animation
 
-    current_pos := Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos));
-    final_pos := Simp.prepare_text(font_ui, to_string(text));
-    rect_w := cast(s64) rect.w - 3 * padding;
-    if (current_pos >= xx scroll_x && current_pos <= xx (scroll_x + rect_w)) { // Check  boundaries
-        if scroll_x > 0 && xx (final_pos - scroll_x) < rect_w {
-            to_scroll := cast(s32) 0;
-            if to_scroll != scroll_anim.target {
-                start_animation(*scroll_anim, scroll_x, to_scroll, snappy = true);
-            }
+    cursor_x    := Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos));
+    text_length := Simp.prepare_text(font_ui, to_string(text));
+    rect_w := cast(s64) (rect.w - 2 * padding);
+    
+    new_scroll_target := scroll_anim.target;
+    
+    if cursor_x >= scroll_x && cursor_x <= scroll_x + rect_w {
+        // Cursor position is within allowed boundaries
+        if scroll_x > 0 && xx (text_length - scroll_x) < rect_w {
+            // Don't allow any whitespace on the right with a nonzero scroll
+            new_scroll_target = xx max(0, text_length - rect_w);
         }
     } else {
-        to_scroll := cast(s32) current_pos; // if current_pos < scroll_x
-        if current_pos > xx rect_w then to_scroll = cast(s32) (current_pos - rect_w);
-        if to_scroll != scroll_anim.target {
-            start_animation(*scroll_anim, scroll_x, to_scroll, snappy = true);
-        }
-    }S
+        // Cursor is outside allowed boundaries
+        new_scroll_target = cast(s32) cursor_x;
+        if cursor_x > xx rect_w then new_scroll_target = cast(s32) (cursor_x - rect_w);   
+    }
+    
+    if new_scroll_target != scroll_anim.target {
+        start_animation(*scroll_anim, scroll_x, new_scroll_target, snappy = true);
+    }
 
     // Maybe scroll
     if scroll_x != scroll_anim.target {
@@ -219,7 +223,16 @@ draw_text_input :: (using text_input: *Text_Input, input_rect: Rect, loc := #cal
 
     // Maybe set cursor on mouse click
     if mouse_pointer_is_within(rect) && mouse.left.is_down {
-        rel_x := cast(s64) (mouse.pointer.x - (rect.x + padding)) + scroll_x;
+        // @Hack: we're adding 2 * dpi_scale to the mouse pointer value, because the active point of the
+        // text select cursor seems to be more to the left than we expect it to be.
+        // This may not be true on all systems! Maybe we should do some other solution, like
+        // reconsider how the get_cursor_pos_for_width calculates width and change it to get
+        // the expected behavior of changing the cursor position.
+        rel_x := cast(s64) (mouse.pointer.x + 2 * dpi_scale - (rect.x + padding)) + scroll_x;
+        cursor_rect := make_rect(xx (mouse.pointer.x + 2 * dpi_scale), xx mouse.pointer.y, 50, 100);
+        draw_rect(cursor_rect, Colors.RED);
+        
+        // TODO: review !!!!!!!!!!!!!!!!!!!!!!
         cursor.pos = Simp.get_cursor_pos_for_width(font_ui, to_string(text), rel_x);
         if !shift_pressed() then cursor.sel = cursor.pos;
     }

@@ -38,7 +38,8 @@
     - Mouse support
         + Modify Simp so that it returns character position based on provided width
         + Clicking to set cursor pos
-        - Fix the left bias
+        + Fix the left bias
+        - Fix the get_cursor_pos function
         - Dragging to select (no shift required)
         - Continue dragging even if outside the rect
 
