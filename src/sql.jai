@@ -25,6 +25,36 @@ get_daily_spendings :: () -> Daily_Spendings, bool {
     return daily_spendings, true;
 }
 
+
+delete_category_from_db :: (id: int) -> bool{
+    sql_str :: "DELETE FROM Categories WHERE id = %;";
+    query := to_c_string(tprint(sql_str, id));
+    defer free(query);
+    
+    errmsg : *u8;
+    result := sqlite3_exec(db, query, null, null, *errmsg);
+    if result != SQLITE_OK {
+        log_error("ERROR: %\n",from_c_string(errmsg));
+        return false;
+    }
+    
+    return true;
+}
+
+add_category_to_db :: (id: int, name: string) -> bool {
+    sql_select :: "INSERT OR REPLACE INTO Categories(id, name) VALUES(%, '%');";
+    query := to_c_string(tprint(sql_select, id, name));
+    defer free(query);
+    errmsg : *u8;
+    result := sqlite3_exec(db, query, null, null, *errmsg);
+    if result != SQLITE_OK {
+        log_error("ERROR: %\n",from_c_string(errmsg));
+        return false;
+    }
+    return true;
+}
+
+
 #scope_file
 
 collect_spendings_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
@@ -43,6 +73,7 @@ collect_spendings_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col
     }
     return SQLITE_OK;
 }
+
 
 #scope_export
 

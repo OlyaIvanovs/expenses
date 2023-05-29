@@ -61,16 +61,16 @@
 
 
 26/05/2023
-Task: Add button to "Settings" page. We can add a new category by clicking on this button. 
-27/05/2023 
-Task: Category should be saved in db
-Task: Add icon delete + removing category from db by clicking on it
-
++ Add button to "Settings" page. We can add a new category by clicking on this button. 
+29/05/2023 
++ Category should be saved in db
++ Add 'delete' icon + removing category from db by clicking on it
++ Edit category name
+30/05/2023
+- Add confirmation while deleting category
 
 Next:
 categories:
-Task: Remove category by clicking on icon + remove from db
-Task: Edit category name
 Task: Add rules for catgory. Remove rules. Edit rules 
 Task: Choose color for category
 

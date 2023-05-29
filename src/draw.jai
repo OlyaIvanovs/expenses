@@ -135,8 +135,7 @@ draw_dashboard :: (main_area: Rect) {
 
 draw_settings :: (main_area: Rect) {
     padding := 4 * dpi_scale;  // TODO: make global?
-    new_category := -1;
-
+    
     draw_rect(main_area, Colors.BACKGROUND_LIGHT);
     categories_rect : Rect;
     pad, main_area := cut_left(main_area, 30 * dpi_scale);
@@ -158,86 +157,101 @@ draw_settings :: (main_area: Rect) {
     // Print categories
     rect : Rect;
     parent_id := get_ui_id_from_loc();
-    for categories {
+    for *category, cat_index: categories {
         draw_icon : bool;
         rect, categories_rect = cut_top(categories_rect, 36 * dpi_scale);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
-        if !it.new {
+        
+        if cat_index != new_category {
             bottomline := rect;
             bottomline.h = 1 * dpi_scale;
             draw_rect(bottomline, Colors.SELECTION_ACTIVE);
             
-             // Add 'remove' button on hover
+             // Show icons on hover
             if mouse_pointer_is_within(rect) {
                 draw_icon = true;
              }
             
-            icon : Rect;
-            icon, rect = cut_right(rect, 12 * dpi_scale);
-            width := cast(float) Simp.prepare_text(font, it.name);
+            icons : Rect;
+            icons, rect = cut_right(rect, 32 * dpi_scale);
+            width := cast(float) Simp.prepare_text(font, category.name);
             pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
             Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
 
-            // Add 'remove' button on hover
             if draw_icon {
-                trash_icon_unicode := 0xf1f8;
-                icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
-                width = cast(float) Simp.prepare_text(font_icons, to_string(*icon_char));
-                pen = make_vector2(icon.x, icon.y + (icon.h - font.character_height) / 2 + 2 * dpi_scale);
-                Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
-             }
-             
-             if mouse_pointer_is_within(icon) {
-                ui_id := get_ui_id_from_loc();
-                became_active := maybe_set_hot_or_active(ui_id, icon, .PRESSABLE);
-                if became_active then array_ordered_remove_by_index(*categories, it_index);
+                trash_icon, edit_icon := cut_right(icons, 10 * dpi_scale);
                 
-                // Remove category from DB
-                sql_str :: "DELETE FROM Categories WHERE id = %;";
-                query := to_c_string(tprint(sql_str, it.id));
-                defer free(query);
-                errmsg : *u8;
-                result := sqlite3_exec(db, query, null, null, *errmsg);
-                if result != SQLITE_OK {
-                    log_error("ERROR: %\n",from_c_string(errmsg));
+                // Edit category
+                edit_icon_unicode := 0xf304;
+                edit_icon_char := convert_utf32_to_utf8(xx edit_icon_unicode);
+                width = cast(float) Simp.prepare_text(font_icons, to_string(*edit_icon_char));
+                pen = make_vector2(edit_icon.x, edit_icon.y + (edit_icon.h - font.character_height) / 2 + 2 * dpi_scale);
+                
+                if mouse_pointer_is_within(edit_icon) {
+                    Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DIM);
+                    ui_id := get_ui_id_from_loc();
+                    became_active := maybe_set_hot_or_active(ui_id, icons, .PRESSABLE);
+                    if became_active then new_category = cat_index;
+                } else {
+                    Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
                 }
-            }
+                
+                // Remove category
+                trash_icon_unicode := 0xf1f8;
+                trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
+                width = cast(float) Simp.prepare_text(font_icons, to_string(*trash_icon_char));
+                pen = make_vector2(trash_icon.x, trash_icon.y + (trash_icon.h - font.character_height) / 2 + 2 * dpi_scale);
+                
+                if mouse_pointer_is_within(trash_icon) {
+                    Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DIM);
+                    ui_id := get_ui_id_from_loc();
+                    became_active := maybe_set_hot_or_active(ui_id, icons, .PRESSABLE);
+                    if became_active {
+                        dialog_text := sprint("Are you sure you want to remove category '%'", category.name); 
+                        // draw_dialog(dialog_text);
+                        ok := delete_category_from_db(category.id);
+                        if !ok then return;
+                        array_ordered_remove_by_index(*categories, cat_index);
+                    } 
+                } else {
+                    Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+                }
+             }
             
         } else {
             input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
             input_rect := cut_top(rect, input_height);
             input_rect.w = 300;
             draw_text_input(*text_input, input_rect);
-            new_category = it_index;
-        }
+            if category.name.count > 0 { // edit category
+                array_resize(*text_input.text, category.name.count);
+                memcpy(text_input.text.data, category.name.data, category.name.count);
+                category.name.count = 0;
+            } 
+        } 
     }
     
     // Add a new category by clicking on the button
-    // Show either input to type a new ctagorie's name or button "Add a new category"
+    // Show either input to type a new categorie's name or button "Add a new category"
     if new_category < 0 {
         rect, categories_rect = cut_top(categories_rect, 36 * dpi_scale);
         draw_button(rect, "Add a new category");
         
-        // Click on button creates a new category to edit(input)
+        // Click on button creates a new category)
+        category_new : Category;
+        category_new.id = categories[categories.count-1].id + 1;
+        
         ui_id := get_ui_id_from_loc();
         became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
-        new_category : Category;
-        new_category.new = true;
-        new_category.id = categories[categories.count-1].id + 1;
-        if became_active then array_add(*categories, new_category);
+        if became_active {
+            new_category = xx categories.count;
+            array_add(*categories, category_new);
+        }
     } else if enter_pressed {
         categories[new_category].name = copy_string(cast(string) text_input.text);
-        categories[new_category].new = false;
         
-        // Add a new category to db
-        sql_select :: "INSERT OR IGNORE INTO Categories(id, name) VALUES(%, '%');";
-        query := to_c_string(tprint(sql_select, categories[new_category].id, categories[new_category].name));
-        defer free(query);
-        errmsg : *u8;
-        result := sqlite3_exec(db, query, null, null, *errmsg);
-        if result != SQLITE_OK {
-            log_error("ERROR: %\n",from_c_string(errmsg));
-        }
+        ok := add_category_to_db(categories[new_category].id, categories[new_category].name);
+        if !ok then return;
         
         new_category = -1;        
         text_input.text.count = 0;
@@ -245,6 +259,13 @@ draw_settings :: (main_area: Rect) {
     
      
 }
+
+draw_dialog :: (text: string) {
+    rect := make_rect(10, 10, window_width, window_height);
+    draw_rect(rect, Colors.RED);
+}
+
+
 
 draw_text_input :: (using text_input: *Text_Input, input_rect: Rect, loc := #caller_location) {
     ui_id := get_ui_id_from_loc(loc);

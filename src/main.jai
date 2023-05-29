@@ -205,22 +205,6 @@ add_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_name
     return SQLITE_OK;
 }
 
-
-// ADD A NEW CAREGORY(REMOVE??????)
-add_category_to_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
-    new_context: Context;
-    // push_context new_context {
-    //     assert(num_cols == 2);
-    //     ok: bool;
-
-    //     category := array_add(*categories);
-    //     category.id, ok = parse_int(*from_c_string(col_data[0]));
-    //     if !ok then log_error("Couldn't parse id from string");
-    //     category.name = copy_temporary_string(from_c_string(col_data[1]));
-    // }
-    return SQLITE_OK;
-}
-
 init_fonts :: () {
     font = Simp.get_font_at_size("fonts", "FiraCode-Retina.ttf", cast(int) (font_size * dpi_scale));
     assert(font != null, "Couldn't init main text font\n");
@@ -324,18 +308,20 @@ Mods :: Input.Event.Modifier_Flags;
 
 categories: [..] Category;
 
+new_category := -1;
+
 program_state: Program_State = .settings;
 
 Program_State :: enum {
     dashboard;
     something_else;
+    dialog;
     settings;
 }
 
 Category :: struct {
     id: int;
     name: string;
-    new: bool;
 }
 
 Spending :: struct {
