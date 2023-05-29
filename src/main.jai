@@ -98,6 +98,7 @@ main :: () {
     while !quit {
         if !redraw_requested platform_wait_message();
         redraw_requested = false;
+        enter_pressed = false;
         
         frame_time = cast(Time) get_time();
         Input.update_window_events();
@@ -127,6 +128,10 @@ main :: () {
 
                     if event.key_code == .ESCAPE {
                         quit = true;
+                    }
+                    
+                    if event.key_code == .ENTER {
+                        enter_pressed = true;
                     }
 
                     // TMP
@@ -197,6 +202,22 @@ add_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_name
         if !ok then log_error("Couldn't parse id from string");
         category.name = copy_temporary_string(from_c_string(col_data[1]));
     }
+    return SQLITE_OK;
+}
+
+
+// ADD A NEW CAREGORY(REMOVE??????)
+add_category_to_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+    new_context: Context;
+    // push_context new_context {
+    //     assert(num_cols == 2);
+    //     ok: bool;
+
+    //     category := array_add(*categories);
+    //     category.id, ok = parse_int(*from_c_string(col_data[0]));
+    //     if !ok then log_error("Couldn't parse id from string");
+    //     category.name = copy_temporary_string(from_c_string(col_data[1]));
+    // }
     return SQLITE_OK;
 }
 
@@ -280,7 +301,6 @@ char_size:   float;
 line_height: float;
 
 LINE_HEIGHT_SCALE :: 1.2;
-
 WHEEL_SENSITIVITY :: 1.0;
 
 font      :  *Simp.Dynamic_Font;
@@ -298,6 +318,8 @@ font_ui_small_line_height: float;
 font_icons      : *Simp.Dynamic_Font;
 font_icons_size := 16;
 
+
+
 Mods :: Input.Event.Modifier_Flags;
 
 categories: [..] Category;
@@ -313,6 +335,7 @@ Program_State :: enum {
 Category :: struct {
     id: int;
     name: string;
+    new: bool;
 }
 
 Spending :: struct {
@@ -331,6 +354,8 @@ Transaction :: struct {
 
 screen: Rect;  // contains the current working area rect for convenience
 dpi_scale := 1.0;
+
+enter_pressed := false;
 
 frame_time: Time;
 redraw_requested := true;
@@ -383,6 +408,7 @@ ctrl_pressed :: inline () -> bool {
 #import "String";
 #import "Math";
 #import "File";
+#import "Unicode";
 Simp  :: #import "Simp_Ext";
 Input :: #import "Input";
 Clipboard :: #import "Clipboard";
@@ -392,6 +418,7 @@ Clipboard :: #import "Clipboard";
 #load "sql.jai";
 #load "layout.jai";
 #load "draw.jai";
+#load "unicode.jai";
 #load "style.jai";
 #load "utils.jai";
 #load "pointer_image.jai";

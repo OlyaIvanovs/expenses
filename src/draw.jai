@@ -134,8 +134,13 @@ draw_dashboard :: (main_area: Rect) {
 }
 
 draw_settings :: (main_area: Rect) {
+    padding := 4 * dpi_scale;  // TODO: make global?
+    new_category := -1;
+
     draw_rect(main_area, Colors.BACKGROUND_LIGHT);
-    categories_rect, main_area := cut_left(main_area, 300 * dpi_scale);
+    categories_rect : Rect;
+    pad, main_area := cut_left(main_area, 30 * dpi_scale);
+    categories_rect, main_area = cut_left(main_area, 300 * dpi_scale);
 
     title_rect : Rect;
     title_rect, categories_rect = cut_top(categories_rect, 50 * dpi_scale);
@@ -152,25 +157,93 @@ draw_settings :: (main_area: Rect) {
     // @review
     // Print categories
     rect : Rect;
+    parent_id := get_ui_id_from_loc();
     for categories {
+        draw_icon : bool;
         rect, categories_rect = cut_top(categories_rect, 36 * dpi_scale);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
-        width := cast(float) Simp.prepare_text(font, it.name);
-        pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
-        Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
-        bottomline := rect;
-        bottomline.h = 1 * dpi_scale;
-        draw_rect(bottomline, Colors.SELECTION_ACTIVE);
+        if !it.new {
+            bottomline := rect;
+            bottomline.h = 1 * dpi_scale;
+            draw_rect(bottomline, Colors.SELECTION_ACTIVE);
+            
+             // Add 'remove' button on hover
+            if mouse_pointer_is_within(rect) {
+                draw_icon = true;
+             }
+            
+            icon : Rect;
+            icon, rect = cut_right(rect, 12 * dpi_scale);
+            width := cast(float) Simp.prepare_text(font, it.name);
+            pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
+            Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+
+            // Add 'remove' button on hover
+            if draw_icon {
+                trash_icon_unicode := 0xf1f8;
+                icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
+                width = cast(float) Simp.prepare_text(font_icons, to_string(*icon_char));
+                pen = make_vector2(icon.x, icon.y + (icon.h - font.character_height) / 2 + 2 * dpi_scale);
+                Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+             }
+             
+             if mouse_pointer_is_within(icon) {
+                ui_id := get_ui_id_from_loc();
+                became_active := maybe_set_hot_or_active(ui_id, icon, .PRESSABLE);
+                if became_active then array_ordered_remove_by_index(*categories, it_index);
+                
+                // Remove category from DB
+                sql_str :: "DELETE FROM Categories WHERE id = %;";
+                query := to_c_string(tprint(sql_str, it.id));
+                defer free(query);
+                errmsg : *u8;
+                result := sqlite3_exec(db, query, null, null, *errmsg);
+                if result != SQLITE_OK {
+                    log_error("ERROR: %\n",from_c_string(errmsg));
+                }
+            }
+            
+        } else {
+            input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
+            input_rect := cut_top(rect, input_height);
+            input_rect.w = 300;
+            draw_text_input(*text_input, input_rect);
+            new_category = it_index;
+        }
     }
-
-    padding := 4 * dpi_scale;  // TODO: make global?
-
-    input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
-    input_rect := cut_top(main_area, input_height);
-    input_rect.x += 30;  // @tmp
-    input_rect.y -= 30;
-    input_rect.w = 300;
-    draw_text_input(*text_input, input_rect);
+    
+    // Add a new category by clicking on the button
+    // Show either input to type a new ctagorie's name or button "Add a new category"
+    if new_category < 0 {
+        rect, categories_rect = cut_top(categories_rect, 36 * dpi_scale);
+        draw_button(rect, "Add a new category");
+        
+        // Click on button creates a new category to edit(input)
+        ui_id := get_ui_id_from_loc();
+        became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
+        new_category : Category;
+        new_category.new = true;
+        new_category.id = categories[categories.count-1].id + 1;
+        if became_active then array_add(*categories, new_category);
+    } else if enter_pressed {
+        categories[new_category].name = copy_string(cast(string) text_input.text);
+        categories[new_category].new = false;
+        
+        // Add a new category to db
+        sql_select :: "INSERT OR IGNORE INTO Categories(id, name) VALUES(%, '%');";
+        query := to_c_string(tprint(sql_select, categories[new_category].id, categories[new_category].name));
+        defer free(query);
+        errmsg : *u8;
+        result := sqlite3_exec(db, query, null, null, *errmsg);
+        if result != SQLITE_OK {
+            log_error("ERROR: %\n",from_c_string(errmsg));
+        }
+        
+        new_category = -1;        
+        text_input.text.count = 0;
+    }
+    
+     
 }
 
 draw_text_input :: (using text_input: *Text_Input, input_rect: Rect, loc := #caller_location) {
@@ -276,6 +349,15 @@ draw_rect_raw :: inline (using rect: Rect, c00: Color, c01: Color, c10: Color, c
     Simp.immediate_quad(x, y, x + w, y + h, c00, c01, c10, c11);
 }
 
+draw_button :: (rect : Rect, text: string) {
+    draw_rect(rect, Colors.BACKGROUND_BRIGHT);
+    text_width := cast(float) Simp.prepare_text(font, text);
+    text_pen := Vector2.{
+        rect.x + (rect.w - text_width)/2 * dpi_scale, 
+        rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale};
+    Simp.draw_prepared_text(font, xx text_pen.x, xx text_pen.y, Colors.UI_DEFAULT);
+}
+
 maybe_set_hot_or_active :: (ui_id: Ui_Id, rect: Rect, pointer_image: Pointer_Image) -> became_active: bool {
     if !mouse_pointer_is_within(rect) return false;
 
@@ -285,8 +367,12 @@ maybe_set_hot_or_active :: (ui_id: Ui_Id, rect: Rect, pointer_image: Pointer_Ima
         ui.active = ui_id;
         return true;
     }
-
+    
     return false;
+}
+
+is_hovering_over :: (ui_id: Ui_Id) -> bool {
+    return ui.hot_last_frame == ui_id && ui.active == .none || ui.active == ui_id;
 }
 
 get_ui_id_from_loc :: inline (loc := #caller_location, parent_id: Ui_Id = .none) -> Ui_Id {

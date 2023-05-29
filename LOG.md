@@ -1,4 +1,4 @@
-# What do wPe want?
+# What do we want?
 
 - Know how much was spent on each category each week/month/year/arbitrary date range?
 - How much money we have
@@ -58,3 +58,25 @@
 + Create a table
     + SQL query
     + find & bind function(s) from sqlite3 library
+
+
+26/05/2023
+Task: Add button to "Settings" page. We can add a new category by clicking on this button. 
+27/05/2023 
+Task: Category should be saved in db
+Task: Add icon delete + removing category from db by clicking on it
+
+
+Next:
+categories:
+Task: Remove category by clicking on icon + remove from db
+Task: Edit category name
+Task: Add rules for catgory. Remove rules. Edit rules 
+Task: Choose color for category
+
+Transactions:
+Task:
+Upload document with transactions
+Show transactions in table
+Give user a posibility to change category
+Add note to transaction
