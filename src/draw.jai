@@ -133,6 +133,9 @@ draw_dashboard :: (main_area: Rect) {
     }
 }
 
+should_remove := -1;
+new_category  := -1;;
+
 draw_settings :: (main_area: Rect) {
     padding := 4 * dpi_scale;  // TODO: make global?
     
@@ -207,11 +210,7 @@ draw_settings :: (main_area: Rect) {
                     ui_id := get_ui_id_from_loc();
                     became_active := maybe_set_hot_or_active(ui_id, icons, .PRESSABLE);
                     if became_active {
-                        dialog_text := sprint("Are you sure you want to remove category '%'", category.name); 
-                        // draw_dialog(dialog_text);
-                        ok := delete_category_from_db(category.id);
-                        if !ok then return;
-                        array_ordered_remove_by_index(*categories, cat_index);
+                        should_remove = cat_index;
                     } 
                 } else {
                     Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
@@ -257,12 +256,58 @@ draw_settings :: (main_area: Rect) {
         text_input.text.count = 0;
     }
     
-     
+    // Draw confirmation dialog
+     if should_remove > -1{
+        draw_dialog();
+     }
 }
 
-draw_dialog :: (text: string) {
-    rect := make_rect(10, 10, window_width, window_height);
-    draw_rect(rect, Colors.RED);
+draw_dialog :: (loc := #caller_location) {
+    cover := make_rect(10, 10, window_width, window_height);
+    draw_rect(cover, Colors.BACKGROUND_TRANSPARENT);
+    
+    text := sprint("Are you sure you want to remove category '%'", categories[should_remove].name); 
+    
+    width := cast(float) Simp.prepare_text(font, text);
+    dialog := make_rect(
+        cast(float) (0.35 * window_width), 
+        cast(float) (0.75 * window_height), 
+        cast(float) (width + 40 * dpi_scale), 
+        cast(float) (120 * dpi_scale));
+    draw_rect(dialog, Colors.BACKGROUND_LIGHT);
+    
+    buttons : Rect;
+    buttons, dialog = cut_bottom(dialog, 60 * dpi_scale);
+    
+    pen := make_vector2(dialog.x + 20 * dpi_scale, dialog.y + (dialog.h - font.character_height) / 2 + 2 * dpi_scale);
+    Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+    
+   
+    no, yes := cut_right(buttons, xx (buttons.w / 2));
+    
+    yes = shrink_y(shrink_x(yes, 0.2 * yes.w), 0.2 * yes.h);    
+    no = shrink_y(shrink_x(no, 0.2 * no.w), 0.2 * no.h);   
+    
+    draw_button(yes, "Yes");
+    draw_button(no, "Cancel");
+    
+    ui_id := get_ui_id_from_loc(loc); 
+    yes_chosen := maybe_set_hot_or_active(ui_id, yes, .PRESSABLE);
+    no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);
+    
+    if yes_chosen {
+        ok := delete_category_from_db(categories[should_remove].id);
+        if !ok then return;
+        array_ordered_remove_by_index(*categories, should_remove);
+        should_remove = -1;
+        return;
+    }
+    
+    if no_chosen {
+        should_remove = -1;
+    }
+    
+    return;
 }
 
 

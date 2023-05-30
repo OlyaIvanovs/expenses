@@ -308,14 +308,11 @@ Mods :: Input.Event.Modifier_Flags;
 
 categories: [..] Category;
 
-new_category := -1;
-
 program_state: Program_State = .settings;
 
 Program_State :: enum {
     dashboard;
     something_else;
-    dialog;
     settings;
 }
 
