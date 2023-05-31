@@ -6,6 +6,12 @@ draw_one_frame :: () {
 
     tabs_rect, main_area := cut_top(screen, 50 * dpi_scale);
     draw_rect(tabs_rect, Colors.BACKGROUND_DARK);
+    
+    if program_state == {
+        case .dashboard;        draw_dashboard(main_area);
+        // case .something_else;
+        case .settings;         draw_settings(main_area);
+    }
 
     // Draw tabs
     {
@@ -62,12 +68,6 @@ draw_one_frame :: () {
             pen := make_vector2(tab_rect.x + margin, tab_rect.y + (tab_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
             Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, text_color);
         }
-    }
-
-    if program_state == {
-        case .dashboard;        draw_dashboard(main_area);
-        // case .something_else;
-        case .settings;         draw_settings(main_area);
     }
 
     // Reset UI state after drawing
@@ -138,12 +138,18 @@ new_category  := -1;;
 
 draw_settings :: (main_area: Rect) {    
     draw_rect(main_area, Colors.BACKGROUND_LIGHT);
-    categories_rect : Rect;
+    categories_rect, rules_rect : Rect;
     pad, main_area := cut_left(main_area, 30 * dpi_scale);
+    pad, main_area = cut_bottom(main_area, 50 * dpi_scale);
     categories_rect, main_area = cut_left(main_area, 300 * dpi_scale);
+    categories_rect, rules_rect = cut_top(categories_rect, 0.5 * categories_rect.h);
+    top_pad := make_rect(main_area.x, main_area.y + main_area.h, main_area.w, window_height - main_area.h);
     
     draw_categories(categories_rect);
+    draw_rules(rules_rect);
     draw_transactions(main_area);
+    draw_rect(pad, Colors.BACKGROUND_LIGHT); // bottom pad
+    draw_rect(top_pad, Colors.BACKGROUND_DARK); // top pad
     
     // Draw confirmation dialog
     if should_remove > -1{
@@ -312,21 +318,74 @@ draw_dialog :: (loc := #caller_location) {
     return;
 }
 
-draw_transactions :: (r: Rect) {
+draw_rules :: (r: Rect) {
     padding := 4 * dpi_scale;  // TODO: make global?
-    title_rect, transactions_rect := cut_top(r, 50 * dpi_scale);
+    categories_rect := r;
+    title_rect : Rect;
+    title_rect, categories_rect = cut_top(categories_rect, 50 * dpi_scale);
     draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
-    
+
     title_bottomline := title_rect;
     title_bottomline.h = 3 * dpi_scale;
     draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
 
-    width := cast(float) Simp.prepare_text(font_ui_bold, "Transactions");
+    width := cast(float) Simp.prepare_text(font_ui_bold, "Rules");
     pen := make_vector2((title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
     Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+}
+
+transactions_scroll_delta :float = 0;
+transactions_scroll_grip :float = 0;
+transaction_height :float = 0;
+
+draw_transactions :: (r: Rect) {
+    padding := 4 * dpi_scale;  // TODO: make global?
+    title_rect, transactions_rect_wrapper := cut_top(r, 50 * dpi_scale);
     
-    transactions_rect = shrink_x(transactions_rect, 0.1 * transactions_rect.w);
+    title_bottomline := title_rect;
+    title_bottomline.h = 3 * dpi_scale;
+    
+    transactions_rect_wrapper = shrink_x(transactions_rect_wrapper, 0.1 * transactions_rect_wrapper.w);
+   
+    // Scroll bar
+    scrollbar, scrollbar_line : Rect;
+    scrollbar, transactions_rect_wrapper = cut_right(transactions_rect_wrapper, 10 * dpi_scale);
+    scrollbar_line, scrollbar = cut_right(scrollbar, 2 * dpi_scale);
+    scroll_h := cast(float) scrollbar.h * scrollbar.h / (transactions.count * 36 * dpi_scale); 
+    if xx(transactions_rect_wrapper.x + transactions_rect_wrapper.h) > window_height { 
+        scroll_y := cast(float) scrollbar.y + (scrollbar.h - scroll_h) - transactions_scroll_delta - transactions_scroll_grip;
+        if scroll_y + scroll_h > scrollbar.y + scrollbar.h then scroll_y = scrollbar.y + scrollbar.h - scroll_h;
+        if scroll_y < scrollbar.y { 
+            scroll_y = scrollbar.y;
+        }
+        scroll := make_rect(cast(float) scrollbar.x, scroll_y, cast(float) scrollbar.w, scroll_h);
+        
+        ui_id := get_ui_id_from_loc();
+        became_active := maybe_set_hot_or_active(ui_id, scroll, .PRESSABLE);
+        // if became_active {
+        //     transactions_scroll_grip = (window_height - mouse.pointer.y) - (scrollbar.y + scrollbar.h + transactions_scroll_delta);
+        // }
+        if ui.active == ui_id {
+           transactions_scroll_delta = (scrollbar.y + scrollbar.h) - mouse.pointer.y;
+           if transactions_scroll_delta < 0 then transactions_scroll_delta = 0;
+           if transactions_scroll_delta + scroll_h > scrollbar.h {
+                 transactions_scroll_delta = scrollbar.h - scroll_h;
+           }
+        }
+        
+        if is_hovering_over(ui_id) {
+            draw_rect(scroll, Colors.BACKGROUND_HIGHLIGHT);
+        } else {
+            draw_rect(scroll, Colors.BACKGROUND_BRIGHT);
+        }
+        draw_rect(scrollbar_line, Colors.BACKGROUND_BRIGHT);
+    }
+    
+     move := (transactions_scroll_delta) / scrollbar.h  * transactions.count * 36 * dpi_scale;
+    
+    // Transctions
     rect : Rect;
+    transactions_rect := make_rect(transactions_rect_wrapper.x, transactions_rect_wrapper.y + move, transactions_rect_wrapper.w, transactions_rect_wrapper.h);
     for tr, tr_index: transactions {
         rect, transactions_rect = cut_top(transactions_rect, 36 * dpi_scale);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
@@ -363,6 +422,12 @@ draw_transactions :: (r: Rect) {
         draw_text_in_rect(rect, sprint("%", category_name));
 
     }
+    
+    draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
+    draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
+    width := cast(float) Simp.prepare_text(font_ui_bold, "Transactions");
+    pen := make_vector2((title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
+    Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
 }
 
 
