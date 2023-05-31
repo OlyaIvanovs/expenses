@@ -60,23 +60,35 @@
     + find & bind function(s) from sqlite3 library
 
 
-26/05/2023
+# 26/05/2023
 + Add button to "Settings" page. We can add a new category by clicking on this button. 
-29/05/2023 
+
+# 29/05/2023 
 + Category should be saved in db
 + Add 'delete' icon + removing category from db by clicking on it
 + Edit category name
-30/05/2023
-- Add confirmation while deleting category
+
+# 30/05/2023
++ Add confirmation while deleting category
++ Add table with transactions(Date/Description/Amount)
+
+# 31/05/2023
++ Add scroll bar
++ Limit text by line's width
+
+# 01/06/2023
++ Add button upload transactions
+- Add icons for transactions(Remove, Edit, More Info)
+- More info for transactions
 
 Next:
 categories:
 Task: Add rules for catgory. Remove rules. Edit rules 
 Task: Choose color for category
+Task: Upload transactions
 
 Transactions:
 Task:
-Upload document with transactions
-Show transactions in table
+Show transactions in table(Add filter, Edit(change category, name, value))
 Give user a posibility to change category
 Add note to transaction

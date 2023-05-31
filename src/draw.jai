@@ -136,18 +136,21 @@ draw_dashboard :: (main_area: Rect) {
 should_remove := -1;
 new_category  := -1;;
 
-draw_settings :: (main_area: Rect) {    
-    draw_rect(main_area, Colors.BACKGROUND_LIGHT);
-    categories_rect, rules_rect : Rect;
-    pad, main_area := cut_left(main_area, 30 * dpi_scale);
+draw_settings :: (r: Rect) {    
+    draw_rect(r, Colors.BACKGROUND_LIGHT);
+    categories_rect, rules_rect, upload_rect, pad : Rect;
+    main_area := shrink_x(r, 50 * dpi_scale);
+    // pad, main_area := cut_left(main_area, 30 * dpi_scale);
     pad, main_area = cut_bottom(main_area, 50 * dpi_scale);
     categories_rect, main_area = cut_left(main_area, 300 * dpi_scale);
     categories_rect, rules_rect = cut_top(categories_rect, 0.5 * categories_rect.h);
+    upload_rect, main_area = cut_right(main_area, 250 * dpi_scale);
     top_pad := make_rect(main_area.x, main_area.y + main_area.h, main_area.w, window_height - main_area.h);
     
     draw_categories(categories_rect);
     draw_rules(rules_rect);
     draw_transactions(main_area);
+    draw_upload_button_area(upload_rect);
     draw_rect(pad, Colors.BACKGROUND_LIGHT); // bottom pad
     draw_rect(top_pad, Colors.BACKGROUND_DARK); // top pad
     
@@ -345,7 +348,7 @@ draw_transactions :: (r: Rect) {
     title_bottomline := title_rect;
     title_bottomline.h = 3 * dpi_scale;
     
-    transactions_rect_wrapper = shrink_x(transactions_rect_wrapper, 0.1 * transactions_rect_wrapper.w);
+    transactions_rect_wrapper = shrink_x(transactions_rect_wrapper, 50 * dpi_scale);
    
     // Scroll bar
     scrollbar, scrollbar_line : Rect;
@@ -428,6 +431,22 @@ draw_transactions :: (r: Rect) {
     width := cast(float) Simp.prepare_text(font_ui_bold, "Transactions");
     pen := make_vector2((title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
     Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+}
+
+draw_upload_button_area :: (r: Rect) {
+    padding := 4 * dpi_scale;  
+    title_rect, r := cut_top(r, 50 * dpi_scale);
+    
+    title_bottomline := title_rect;
+    title_bottomline.h = 3 * dpi_scale;
+    draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
+    draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
+    
+    pad, button_area : Rect;
+    pad, r = cut_top(r, 36 * dpi_scale);
+    button_area, r = cut_top(r, 36 * dpi_scale);
+    
+    draw_button(button_area, "Upload transactions");
 }
 
 
