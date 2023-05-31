@@ -42,7 +42,6 @@ main :: () {
     contents, success := read_entire_file("ex.csv");
     assert(success);
 
-    transactions : [..]Transaction;
     csv_file := read_csv("ex.csv", ",", 6, num_cols = 7);
     ok: bool;
     for row : csv_file.rows {
@@ -306,8 +305,6 @@ font_icons_size := 16;
 
 Mods :: Input.Event.Modifier_Flags;
 
-categories: [..] Category;
-
 program_state: Program_State = .settings;
 
 Program_State :: enum {
@@ -316,16 +313,14 @@ Program_State :: enum {
     settings;
 }
 
+
+categories: [..] Category;
 Category :: struct {
     id: int;
     name: string;
 }
 
-Spending :: struct {
-    category_id: int;
-    total_spent: float64;
-}
-
+transactions : [..]Transaction;
 Transaction :: struct {
     id: int;
     date: string;
@@ -333,6 +328,11 @@ Transaction :: struct {
     details: string;
     note: string;
     category_id: int;
+}
+
+Spending :: struct {
+    category_id: int;
+    total_spent: float64;
 }
 
 screen: Rect;  // contains the current working area rect for convenience
@@ -343,10 +343,9 @@ enter_pressed := false;
 frame_time: Time;
 redraw_requested := true;
 
-mouse: Mouse_State;
-
 db : sqlite3;  // initialised at the start
 
+mouse: Mouse_State;
 Mouse_State :: struct {
     pointer: Vector2;
     scroll_y_delta: s32;
@@ -355,7 +354,6 @@ Mouse_State :: struct {
     right:  Mouse_Button_State;
     middle: Mouse_Button_State;
 }
-
 Mouse_Button_State :: struct {
     is_down:             bool;
     is_dragging:         bool;

@@ -136,14 +136,24 @@ draw_dashboard :: (main_area: Rect) {
 should_remove := -1;
 new_category  := -1;;
 
-draw_settings :: (main_area: Rect) {
-    padding := 4 * dpi_scale;  // TODO: make global?
-    
+draw_settings :: (main_area: Rect) {    
     draw_rect(main_area, Colors.BACKGROUND_LIGHT);
     categories_rect : Rect;
     pad, main_area := cut_left(main_area, 30 * dpi_scale);
     categories_rect, main_area = cut_left(main_area, 300 * dpi_scale);
+    
+    draw_categories(categories_rect);
+    draw_transactions(main_area);
+    
+    // Draw confirmation dialog
+    if should_remove > -1{
+        draw_dialog();
+    }
+}
 
+draw_categories :: (r: Rect) {
+    padding := 4 * dpi_scale;  // TODO: make global?
+    categories_rect := r;
     title_rect : Rect;
     title_rect, categories_rect = cut_top(categories_rect, 50 * dpi_scale);
     draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
@@ -156,10 +166,7 @@ draw_settings :: (main_area: Rect) {
     pen := make_vector2((title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
     Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
 
-    // @review
-    // Print categories
     rect : Rect;
-    parent_id := get_ui_id_from_loc();
     for *category, cat_index: categories {
         draw_icon : bool;
         rect, categories_rect = cut_top(categories_rect, 36 * dpi_scale);
@@ -255,11 +262,6 @@ draw_settings :: (main_area: Rect) {
         new_category = -1;        
         text_input.text.count = 0;
     }
-    
-    // Draw confirmation dialog
-     if should_remove > -1{
-        draw_dialog();
-     }
 }
 
 draw_dialog :: (loc := #caller_location) {
@@ -308,6 +310,59 @@ draw_dialog :: (loc := #caller_location) {
     }
     
     return;
+}
+
+draw_transactions :: (r: Rect) {
+    padding := 4 * dpi_scale;  // TODO: make global?
+    title_rect, transactions_rect := cut_top(r, 50 * dpi_scale);
+    draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
+    
+    title_bottomline := title_rect;
+    title_bottomline.h = 3 * dpi_scale;
+    draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
+
+    width := cast(float) Simp.prepare_text(font_ui_bold, "Transactions");
+    pen := make_vector2((title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
+    Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+    
+    transactions_rect = shrink_x(transactions_rect, 0.1 * transactions_rect.w);
+    rect : Rect;
+    for tr, tr_index: transactions {
+        rect, transactions_rect = cut_top(transactions_rect, 36 * dpi_scale);
+        draw_rect(rect, Colors.BACKGROUND_LIGHT);
+        
+        bottomline := rect;
+        bottomline.h = 1 * dpi_scale;
+        draw_rect(bottomline, Colors.SELECTION_ACTIVE);
+        
+        line_width := rect.w;
+        
+        // Date
+        date_rect: Rect;
+        date_rect, rect = cut_left(rect, 0.1 * line_width);
+        draw_text_in_rect(date_rect, tr.date);
+        
+        // Details
+        details_rect: Rect;
+        details_rect, rect = cut_left(rect, 0.6 * line_width);
+        draw_text_in_rect(details_rect, tr.details);
+
+        // Amount
+        amount_rect: Rect;
+        amount_rect, rect = cut_left(rect, 0.1 * line_width);
+        draw_text_in_rect(amount_rect, sprint("%", tr.amount));
+        
+        // Category
+        category_name := "UNCATEGORIZED";
+        if tr.category_id {
+            for categories if it.id == tr.category_id { 
+                category_name =  it.name;
+                break; 
+            }
+        }
+        draw_text_in_rect(rect, sprint("%", category_name));
+
+    }
 }
 
 
@@ -414,6 +469,14 @@ draw_rect_raw :: inline (using rect: Rect, color: Color) {
 draw_rect_raw :: inline (using rect: Rect, c00: Color, c01: Color, c10: Color, c11: Color) {
     Simp.immediate_quad(x, y, x + w, y + h, c00, c01, c10, c11);
 }
+
+draw_text_in_rect :: (rect : Rect, text: string) {
+    width := cast(float) Simp.prepare_text(font, text);
+    pen := Vector2.{
+        rect.x + 5 * dpi_scale, 
+        rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale};
+    Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+} 
 
 draw_button :: (rect : Rect, text: string) {
     draw_rect(rect, Colors.BACKGROUND_BRIGHT);
