@@ -383,7 +383,7 @@ draw_transactions :: (r: Rect) {
     
      move := (transactions_scroll_delta) / scrollbar.h  * transactions.count * 36 * dpi_scale;
     
-    // Transctions
+    // Transactions
     rect : Rect;
     transactions_rect := make_rect(transactions_rect_wrapper.x, transactions_rect_wrapper.y + move, transactions_rect_wrapper.w, transactions_rect_wrapper.h);
     for tr, tr_index: transactions {
@@ -536,7 +536,7 @@ draw_rect_raw :: inline (using rect: Rect, c00: Color, c01: Color, c10: Color, c
 }
 
 draw_text_in_rect :: (rect : Rect, text: string) {
-    width := cast(float) Simp.prepare_text(font, text);
+    width := cast(float) Simp.prepare_text_with_max_width(font, text, xx (rect.w - 5 * dpi_scale));
     pen := Vector2.{
         rect.x + 5 * dpi_scale, 
         rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale};
