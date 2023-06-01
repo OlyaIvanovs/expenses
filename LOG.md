@@ -78,14 +78,16 @@
 
 # 01/06/2023
 + Add button upload transactions
-- Add icons for transactions(Remove, Edit, More Info)
-- More info for transactions
++ Add icons for transactions(Remove, Edit, More Info)
+- More info/edit for transactions
+- Remove transaction
 
 Next:
 categories:
 Task: Add rules for catgory. Remove rules. Edit rules 
 Task: Choose color for category
 Task: Upload transactions
+Task: Add scrollbar for rules and categories
 
 Transactions:
 Task:

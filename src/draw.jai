@@ -133,7 +133,7 @@ draw_dashboard :: (main_area: Rect) {
     }
 }
 
-should_remove := -1;
+should_remove_category := -1;
 new_category  := -1;;
 
 draw_settings :: (r: Rect) {    
@@ -155,29 +155,18 @@ draw_settings :: (r: Rect) {
     draw_rect(top_pad, Colors.BACKGROUND_DARK); // top pad
     
     // Draw confirmation dialog
-    if should_remove > -1{
+    if should_remove_category > -1{
         draw_dialog();
     }
 }
 
 draw_categories :: (r: Rect) {
     padding := 4 * dpi_scale;  // TODO: make global?
-    categories_rect := r;
-    title_rect : Rect;
-    title_rect, categories_rect = cut_top(categories_rect, 50 * dpi_scale);
-    draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
-
-    title_bottomline := title_rect;
-    title_bottomline.h = 3 * dpi_scale;
-    draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
-
-    width := cast(float) Simp.prepare_text(font_ui_bold, "Categories");
-    pen := make_vector2((title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
-    Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+    categories_rect := draw_title(r, "Categories");
 
     rect : Rect;
     for *category, cat_index: categories {
-        draw_icon : bool;
+        show_icons : bool;
         rect, categories_rect = cut_top(categories_rect, 36 * dpi_scale);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
         
@@ -188,49 +177,23 @@ draw_categories :: (r: Rect) {
             
              // Show icons on hover
             if mouse_pointer_is_within(rect) {
-                draw_icon = true;
+                show_icons = true;
              }
             
-            icons : Rect;
-            icons, rect = cut_right(rect, 32 * dpi_scale);
+            icon : Rect;
+            icon, rect = cut_right(rect, 20 * dpi_scale);
             width := cast(float) Simp.prepare_text(font, category.name);
             pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
             Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
 
-            if draw_icon {
-                trash_icon, edit_icon := cut_right(icons, 10 * dpi_scale);
-                
-                // Edit category
-                edit_icon_unicode := 0xf304;
-                edit_icon_char := convert_utf32_to_utf8(xx edit_icon_unicode);
-                width = cast(float) Simp.prepare_text(font_icons, to_string(*edit_icon_char));
-                pen = make_vector2(edit_icon.x, edit_icon.y + (edit_icon.h - font.character_height) / 2 + 2 * dpi_scale);
-                
-                if mouse_pointer_is_within(edit_icon) {
-                    Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DIM);
-                    ui_id := get_ui_id_from_loc();
-                    became_active := maybe_set_hot_or_active(ui_id, icons, .PRESSABLE);
-                    if became_active then new_category = cat_index;
-                } else {
-                    Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
-                }
-                
-                // Remove category
-                trash_icon_unicode := 0xf1f8;
-                trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
-                width = cast(float) Simp.prepare_text(font_icons, to_string(*trash_icon_char));
-                pen = make_vector2(trash_icon.x, trash_icon.y + (trash_icon.h - font.character_height) / 2 + 2 * dpi_scale);
-                
-                if mouse_pointer_is_within(trash_icon) {
-                    Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DIM);
-                    ui_id := get_ui_id_from_loc();
-                    became_active := maybe_set_hot_or_active(ui_id, icons, .PRESSABLE);
-                    if became_active {
-                        should_remove = cat_index;
-                    } 
-                } else {
-                    Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
-                }
+            if show_icons {
+                draw_icons(icon, cat_index, "categories");
+             }
+             
+             if mouse_pointer_is_within(rect) {
+                ui_id := get_ui_id_from_loc();
+                became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
+                if became_active  then new_category = cat_index;
              }
             
         } else {
@@ -273,11 +236,27 @@ draw_categories :: (r: Rect) {
     }
 }
 
+draw_icons :: (r: Rect, index: int, mode: string) {
+    trash_icon_unicode := 0xf1f8;
+    trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
+    width := cast(float) Simp.prepare_text(font_icons, to_string(*trash_icon_char));
+    pen := make_vector2(r.x, r.y + (r.h - font.character_height) / 2 + 2 * dpi_scale);
+    
+    if mouse_pointer_is_within(r) {
+        Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DIM);
+        ui_id := get_ui_id_from_loc();
+        became_active := maybe_set_hot_or_active(ui_id, r, .PRESSABLE);
+        if became_active && mode == "categories" should_remove_category = index;
+    } else {
+        Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+    }
+}
+
 draw_dialog :: (loc := #caller_location) {
     cover := make_rect(10, 10, window_width, window_height);
     draw_rect(cover, Colors.BACKGROUND_TRANSPARENT);
     
-    text := sprint("Are you sure you want to remove category '%'", categories[should_remove].name); 
+    text := sprint("Are you sure you want to remove category '%'", categories[should_remove_category].name); 
     
     width := cast(float) Simp.prepare_text(font, text);
     dialog := make_rect(
@@ -307,39 +286,30 @@ draw_dialog :: (loc := #caller_location) {
     no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);
     
     if yes_chosen {
-        ok := delete_category_from_db(categories[should_remove].id);
+        ok := delete_category_from_db(categories[should_remove_category].id);
         if !ok then return;
-        array_ordered_remove_by_index(*categories, should_remove);
-        should_remove = -1;
+        array_ordered_remove_by_index(*categories, should_remove_category);
+        should_remove_category = -1;
         return;
     }
     
     if no_chosen {
-        should_remove = -1;
+        should_remove_category = -1;
     }
     
     return;
 }
 
 draw_rules :: (r: Rect) {
-    padding := 4 * dpi_scale;  // TODO: make global?
-    categories_rect := r;
-    title_rect : Rect;
-    title_rect, categories_rect = cut_top(categories_rect, 50 * dpi_scale);
-    draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
-
-    title_bottomline := title_rect;
-    title_bottomline.h = 3 * dpi_scale;
-    draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
-
-    width := cast(float) Simp.prepare_text(font_ui_bold, "Rules");
-    pen := make_vector2((title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
-    Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+    rules_rect := draw_title(r, "Rules");
+    
+    rect: Rect;
+    rect, rules_rect = cut_top(rules_rect, 36 * dpi_scale);
+    draw_button(rect, "Add a new rule");
 }
 
 transactions_scroll_delta :float = 0;
 transactions_scroll_grip :float = 0;
-transaction_height :float = 0;
 
 draw_transactions :: (r: Rect) {
     padding := 4 * dpi_scale;  // TODO: make global?
@@ -390,6 +360,7 @@ draw_transactions :: (r: Rect) {
     rect : Rect;
     transactions_rect := make_rect(transactions_rect_wrapper.x, transactions_rect_wrapper.y + move, transactions_rect_wrapper.w, transactions_rect_wrapper.h);
     for tr, tr_index: transactions {
+        show_icons := false;
         rect, transactions_rect = cut_top(transactions_rect, 36 * dpi_scale);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
         
@@ -397,24 +368,28 @@ draw_transactions :: (r: Rect) {
         bottomline.h = 1 * dpi_scale;
         draw_rect(bottomline, Colors.SELECTION_ACTIVE);
         
+        // Show icons on hover
+        if mouse_pointer_is_within(rect) {
+            show_icons = true;
+         }
+    
         line_width := rect.w;
+        date_rect, details_rect, amount_rect, category_rect, icons_rect: Rect;
         
         // Date
-        date_rect: Rect;
         date_rect, rect = cut_left(rect, 0.1 * line_width);
         draw_text_in_rect(date_rect, tr.date);
         
         // Details
-        details_rect: Rect;
         details_rect, rect = cut_left(rect, 0.6 * line_width);
         draw_text_in_rect(details_rect, tr.details);
 
         // Amount
-        amount_rect: Rect;
         amount_rect, rect = cut_left(rect, 0.1 * line_width);
         draw_text_in_rect(amount_rect, sprint("%", tr.amount));
         
         // Category
+        category_rect, rect = cut_left(rect, 0.15 * line_width);
         category_name := "UNCATEGORIZED";
         if tr.category_id {
             for categories if it.id == tr.category_id { 
@@ -422,8 +397,13 @@ draw_transactions :: (r: Rect) {
                 break; 
             }
         }
-        draw_text_in_rect(rect, sprint("%", category_name));
-
+        draw_text_in_rect(category_rect, sprint("%", category_name));
+        
+        icons_rect, rect = cut_right(rect, 20 * dpi_scale); 
+        
+        if show_icons {
+             draw_icons(icons_rect, tr_index, "transactions");
+        }
     }
     
     draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
@@ -449,6 +429,20 @@ draw_upload_button_area :: (r: Rect) {
     draw_button(button_area, "Upload transactions");
 }
 
+
+draw_title :: (r: Rect, title: string) -> Rect{
+    title_rect, rect := cut_top(r, 50 * dpi_scale);
+
+    title_bottomline := title_rect;
+    title_bottomline.h = 3 * dpi_scale;
+    draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
+
+    width := cast(float) Simp.prepare_text(font_ui_bold, title);
+    pen := make_vector2(title_rect.x + (title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
+    Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+    
+    return rect;
+}
 
 
 draw_text_input :: (using text_input: *Text_Input, input_rect: Rect, loc := #caller_location) {
