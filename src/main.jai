@@ -45,7 +45,7 @@ main :: () {
     csv_file := read_csv("ex.csv", ",", 6, num_cols = 7);
     ok: bool;
     for row : csv_file.rows {
-        t := array_add(*transactions);
+        t := array_add(*transactions_raw);
         t.date = row.fields[1];
         t.amount, ok = parse_float64(*row.fields[6]);
         if !ok then log_error("Couldn't parse amount as float: %\n", row.fields[6]);
@@ -68,7 +68,7 @@ main :: () {
     query_builder: String_Builder;
     init_string_builder(*query_builder);
     print_to_builder(*query_builder, "BEGIN TRANSACTION;\n");
-    for t : transactions {
+    for t : transactions_raw {
         insert :: #string QUERY
     INSERT INTO Transactions (transaction_date, amount, details, category_id) VALUES ("%", %, %, %);
     QUERY;
@@ -78,10 +78,19 @@ main :: () {
 
     query := builder_to_string(*query_builder);
     defer free(query);
+    
     // result = sqlite3_exec(db, to_c_string(query), null, null, *errmsg);
     // if result != SQLITE_OK {
     //     log_error("ERROR: %\n",from_c_string(errmsg));
     // }
+    
+    
+    // Get transactions from DB
+    sql_select_tr :: "SELECT * FROM Transactions;";
+    result = sqlite3_exec(db, sql_select_tr, get_transactions_from_db, null, *errmsg);
+    if result != SQLITE_OK {
+        log_error("ERROR: %\n",from_c_string(errmsg));
+    }
 
     window_x, window_y := platform_get_biggest_monitor_pos();
     window = create_window(window_width, window_height, "Expenses", window_x, window_y, background_color_rgb = as_3_floats(Colors.BACKGROUND));
@@ -204,6 +213,28 @@ add_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_name
     return SQLITE_OK;
 }
 
+get_transactions_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+    new_context: Context;
+    push_context new_context {
+        assert(num_cols == 6);
+        ok: bool;
+
+        transaction := array_add(*transactions);
+        transaction.id, ok = parse_int(*from_c_string(col_data[0]));
+        if !ok then log_error("Couldn't parse id from string");
+        transaction.date = copy_temporary_string(from_c_string(col_data[1]));
+        transaction.amount, ok = parse_float(*from_c_string(col_data[2]));
+        if !ok then log_error("Couldn't parse amount from string");
+        transaction.details = copy_temporary_string(from_c_string(col_data[3]));
+        // transaction.note = copy_temporary_string(from_c_string(col_data[4]));
+        transaction.category_id, ok = parse_int(*from_c_string(col_data[5]));
+        if !ok then log_error("Couldn't parse category_id from string");
+    }
+    return SQLITE_OK;
+}
+
+
+
 init_fonts :: () {
     font = Simp.get_font_at_size("fonts", "FiraCode-Retina.ttf", cast(int) (font_size * dpi_scale));
     assert(font != null, "Couldn't init main text font\n");
@@ -320,6 +351,7 @@ Category :: struct {
     name: string;
 }
 
+transactions_raw : [..]Transaction;
 transactions : [..]Transaction;
 Transaction :: struct {
     id: int;

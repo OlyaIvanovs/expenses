@@ -134,19 +134,20 @@ draw_dashboard :: (main_area: Rect) {
 }
 
 should_remove_category := -1;
+should_remove_transaction := -1;
 new_category  := -1;;
 
 draw_settings :: (r: Rect) {    
-    draw_rect(r, Colors.BACKGROUND_LIGHT);
     categories_rect, rules_rect, upload_rect, pad : Rect;
+    
     main_area := shrink_x(r, 50 * dpi_scale);
-    // pad, main_area := cut_left(main_area, 30 * dpi_scale);
     pad, main_area = cut_bottom(main_area, 50 * dpi_scale);
     categories_rect, main_area = cut_left(main_area, 300 * dpi_scale);
     categories_rect, rules_rect = cut_top(categories_rect, 0.5 * categories_rect.h);
     upload_rect, main_area = cut_right(main_area, 250 * dpi_scale);
     top_pad := make_rect(main_area.x, main_area.y + main_area.h, main_area.w, window_height - main_area.h);
     
+    draw_rect(r, Colors.BACKGROUND_LIGHT);
     draw_categories(categories_rect);
     draw_rules(rules_rect);
     draw_transactions(main_area);
@@ -155,8 +156,12 @@ draw_settings :: (r: Rect) {
     draw_rect(top_pad, Colors.BACKGROUND_DARK); // top pad
     
     // Draw confirmation dialog
-    if should_remove_category > -1{
-        draw_dialog();
+    if should_remove_category > -1 {
+        draw_dialog("categories");
+    }
+    
+    if should_remove_transaction > -1 {
+        draw_dialog("transactions");
     }
 }
 
@@ -247,16 +252,26 @@ draw_icons :: (r: Rect, index: int, mode: string) {
         ui_id := get_ui_id_from_loc();
         became_active := maybe_set_hot_or_active(ui_id, r, .PRESSABLE);
         if became_active && mode == "categories" should_remove_category = index;
+        if became_active && mode == "transactions" should_remove_transaction = index;
     } else {
         Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
     }
 }
 
-draw_dialog :: (loc := #caller_location) {
+draw_dialog :: (mode: string, loc := #caller_location) {
     cover := make_rect(10, 10, window_width, window_height);
     draw_rect(cover, Colors.BACKGROUND_TRANSPARENT);
     
-    text := sprint("Are you sure you want to remove category '%'", categories[should_remove_category].name); 
+    text : string;
+    if mode == {
+        case "categories"; 
+            text = sprint("Are you sure you want to remove category '%'", categories[should_remove_category].name);
+            
+        case "transactions";
+            text = sprint("Are you sure you want to remove transaction '%'", transactions[should_remove_transaction].details);
+    }
+    
+     
     
     width := cast(float) Simp.prepare_text(font, text);
     dialog := make_rect(
@@ -285,16 +300,26 @@ draw_dialog :: (loc := #caller_location) {
     yes_chosen := maybe_set_hot_or_active(ui_id, yes, .PRESSABLE);
     no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);
     
-    if yes_chosen {
-        ok := delete_category_from_db(categories[should_remove_category].id);
-        if !ok then return;
-        array_ordered_remove_by_index(*categories, should_remove_category);
-        should_remove_category = -1;
-        return;
+    if yes_chosen if mode == {
+        case "categories"; 
+            ok := delete_category_from_db(categories[should_remove_category].id);
+            if !ok then return;
+            array_ordered_remove_by_index(*categories, should_remove_category);
+            should_remove_category = -1;
+            return;
+            
+        case "transactions";
+            print("transactions[should_remove_transaction] %\n", transactions[should_remove_transaction]);
+            ok := delete_transaction_from_db(transactions[should_remove_transaction].id);
+            if !ok then return;
+            array_ordered_remove_by_index(*transactions, should_remove_transaction);
+            should_remove_transaction = -1;
+            return;
     }
     
     if no_chosen {
         should_remove_category = -1;
+        should_remove_transaction = -1;
     }
     
     return;
@@ -408,7 +433,7 @@ draw_transactions :: (r: Rect) {
     
     draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
     draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
-    width := cast(float) Simp.prepare_text(font_ui_bold, "Transactions");
+    width := cast(float) Simp.prepare_text(font_ui_bold, sprint("Transactions (%)",transactions.count));
     pen := make_vector2((title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
     Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
 }
@@ -425,8 +450,15 @@ draw_upload_button_area :: (r: Rect) {
     pad, button_area : Rect;
     pad, r = cut_top(r, 36 * dpi_scale);
     button_area, r = cut_top(r, 36 * dpi_scale);
-    
     draw_button(button_area, "Upload transactions");
+    ui_id := get_ui_id_from_loc();
+    became_active := maybe_set_hot_or_active(ui_id, button_area, .PRESSABLE);
+    
+    pad, r = cut_top(r, 36 * dpi_scale);
+    button_area, r = cut_top(r, 36 * dpi_scale);
+    draw_button(button_area, "Add transaction");
+    ui_id = get_ui_id_from_loc();
+    became_active = maybe_set_hot_or_active(ui_id, button_area, .PRESSABLE);
 }
 
 

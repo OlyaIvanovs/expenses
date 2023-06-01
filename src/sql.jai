@@ -28,22 +28,22 @@ get_daily_spendings :: () -> Daily_Spendings, bool {
 
 delete_category_from_db :: (id: int) -> bool{
     sql_str :: "DELETE FROM Categories WHERE id = %;";
-    query := to_c_string(tprint(sql_str, id));
-    defer free(query);
-    
-    errmsg : *u8;
-    result := sqlite3_exec(db, query, null, null, *errmsg);
-    if result != SQLITE_OK {
-        log_error("ERROR: %\n",from_c_string(errmsg));
-        return false;
-    }
-    
-    return true;
+    return execute_simple_db_query(tprint(sql_str, id));
+}
+
+delete_transaction_from_db :: (id: int) -> bool{
+    print("delete id %", id);
+    sql_str :: "DELETE FROM Transactions WHERE id = %;";
+    return execute_simple_db_query(tprint(sql_str, id));
 }
 
 add_category_to_db :: (id: int, name: string) -> bool {
-    sql_select :: "INSERT OR REPLACE INTO Categories(id, name) VALUES(%, '%');";
-    query := to_c_string(tprint(sql_select, id, name));
+    sql_str :: "INSERT OR REPLACE INTO Categories(id, name) VALUES(%, '%');";
+    return execute_simple_db_query(tprint(sql_str, id, name));
+}
+
+execute_simple_db_query :: (select: string) -> bool{
+    query := to_c_string(select);
     defer free(query);
     errmsg : *u8;
     result := sqlite3_exec(db, query, null, null, *errmsg);
