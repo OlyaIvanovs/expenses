@@ -32,9 +32,13 @@ delete_category_from_db :: (id: int) -> bool{
 }
 
 delete_transaction_from_db :: (id: int) -> bool{
-    print("delete id %", id);
     sql_str :: "DELETE FROM Transactions WHERE id = %;";
     return execute_simple_db_query(tprint(sql_str, id));
+}
+
+delete_all_transaction_from_db :: () -> bool{
+    sql_str :: "DELETE FROM Transactions;";
+    return execute_simple_db_query(sql_str);
 }
 
 add_category_to_db :: (id: int, name: string) -> bool {

@@ -135,6 +135,7 @@ draw_dashboard :: (main_area: Rect) {
 
 should_remove_category := -1;
 should_remove_transaction := -1;
+should_remove_all_transactions := false;
 new_category  := -1;;
 
 draw_settings :: (r: Rect) {    
@@ -158,10 +159,10 @@ draw_settings :: (r: Rect) {
     // Draw confirmation dialog
     if should_remove_category > -1 {
         draw_dialog("categories");
-    }
-    
-    if should_remove_transaction > -1 {
+    }else  if should_remove_transaction > -1 {
         draw_dialog("transactions");
+    } else if should_remove_all_transactions {
+        draw_dialog("all_transactions");
     }
 }
 
@@ -271,10 +272,11 @@ draw_dialog :: (mode: string, loc := #caller_location) {
     text : string;
     if mode == {
         case "categories"; 
-            text = sprint("Are you sure you want to remove category '%'", categories[should_remove_category].name);
-            
+            text = sprint("Are you sure you want to remove category '%'?", categories[should_remove_category].name);
+         case "all_transactions"; 
+            text = sprint("Are you sure you want to remove all transactions?");
         case "transactions";
-            text = sprint("Are you sure you want to remove transaction '%'", transactions[should_remove_transaction].details);
+            text = sprint("Are you sure you want to remove transaction '%'?", transactions[should_remove_transaction].details);
     }
     
      
@@ -315,17 +317,25 @@ draw_dialog :: (mode: string, loc := #caller_location) {
             return;
             
         case "transactions";
-            print("transactions[should_remove_transaction] %\n", transactions[should_remove_transaction]);
             ok := delete_transaction_from_db(transactions[should_remove_transaction].id);
             if !ok then return;
             array_ordered_remove_by_index(*transactions, should_remove_transaction);
             should_remove_transaction = -1;
             return;
+            
+        case "all_transactions";
+            ok := delete_all_transaction_from_db();
+            if !ok then return;
+            transactions.count = 0;
+            should_remove_all_transactions = false;
+            return;
+
     }
     
     if no_chosen {
         should_remove_category = -1;
         should_remove_transaction = -1;
+        should_remove_all_transactions = false;
     }
     
     return;
@@ -459,6 +469,13 @@ draw_buttons_area :: (r: Rect) {
     draw_button(button_area, "Upload transactions");
     ui_id := get_ui_id_from_loc();
     became_active := maybe_set_hot_or_active(ui_id, button_area, .PRESSABLE);
+    
+    pad, r = cut_top(r, 36 * dpi_scale);
+    button_area, r = cut_top(r, 36 * dpi_scale);
+    draw_button(button_area, "Remove all transactions");
+    ui_id = get_ui_id_from_loc();
+    became_active = maybe_set_hot_or_active(ui_id, button_area, .PRESSABLE);
+    if became_active then should_remove_all_transactions = true;
     
     pad, r = cut_top(r, 36 * dpi_scale);
     button_area, r = cut_top(r, 36 * dpi_scale);
