@@ -79,8 +79,9 @@
 # 01/06/2023
 + Add button upload transactions
 + Add icons for transactions(Remove, Edit, More Info)
++ Remove transaction
++ Add color to category
 - More info/edit for transactions
-- Remove transaction
 
 Next:
 categories:

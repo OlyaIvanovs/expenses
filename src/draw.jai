@@ -151,7 +151,7 @@ draw_settings :: (r: Rect) {
     draw_categories(categories_rect);
     draw_rules(rules_rect);
     draw_transactions(main_area);
-    draw_upload_button_area(upload_rect);
+    draw_buttons_area(upload_rect);
     draw_rect(pad, Colors.BACKGROUND_LIGHT); // bottom pad
     draw_rect(top_pad, Colors.BACKGROUND_DARK); // top pad
     
@@ -185,14 +185,20 @@ draw_categories :: (r: Rect) {
                 show_icons = true;
              }
             
-            icon : Rect;
-            icon, rect = cut_right(rect, 20 * dpi_scale);
+            trash_icon, color_icon : Rect;
+            trash_icon, rect = cut_right(rect, 20 * dpi_scale);
+            color_icon, rect = cut_left(rect, 30 * dpi_scale);
             width := cast(float) Simp.prepare_text(font, category.name);
             pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
             Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+            
+            color_icon = shrink(color_icon, 10 * dpi_scale);
+            c,ok := hex_to_color(category.color);
+            if !ok then c = Colors.RED;
+            draw_rect(color_icon, c);
 
             if show_icons {
-                draw_icons(icon, cat_index, "categories");
+                draw_icons(trash_icon, cat_index, "categories");
              }
              
              if mouse_pointer_is_within(rect) {
@@ -434,11 +440,11 @@ draw_transactions :: (r: Rect) {
     draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
     draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
     width := cast(float) Simp.prepare_text(font_ui_bold, sprint("Transactions (%)",transactions.count));
-    pen := make_vector2((title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
+    pen := make_vector2(title_rect.x + (title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
     Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
 }
 
-draw_upload_button_area :: (r: Rect) {
+draw_buttons_area :: (r: Rect) {
     padding := 4 * dpi_scale;  
     title_rect, r := cut_top(r, 50 * dpi_scale);
     

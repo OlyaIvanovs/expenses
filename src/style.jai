@@ -73,3 +73,32 @@ is_none :: (using color: Color) -> bool {
     return r < 0 || g < 0 || b < 0 || a < 0;
 }
 
+hex_to_color :: (src_hex: string) -> Color, success: bool {
+    hex := src_hex;
+    if hex.count == 6 then hex = tprint("%FF", hex);
+    if hex.count != 8 return Color.{}, false;
+
+    r := slice(hex, 0, 2);
+    g := slice(hex, 2, 2);
+    b := slice(hex, 4, 2);
+    a := slice(hex, 6, 2);
+
+    to_float :: (byte_str: string) -> float {
+        d1, d0 := cast(float)hex_digit_to_int(byte_str[0]), cast(float) hex_digit_to_int(byte_str[1]);
+        if d1 < 0 || d0 < 0 return -1;
+
+        return (16 * d1 + d0) / 255;
+
+        hex_digit_to_int :: (char: u8) -> int {
+            char = to_upper(char);
+            if #char "0" <= char && char <= #char "9" return char - #char "0";
+            if #char "A" <= char && char <= #char "F" return 10 + char - #char "A";
+            return -1;
+        }
+    }
+
+    c := Color.{ r = to_float(r), g = to_float(g), b = to_float(b), a = to_float(a) };
+
+    return c, c.r >= 0 && c.g >= 0 && c.b >= 0 && c.a >= 0;
+}
+

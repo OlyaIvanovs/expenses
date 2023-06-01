@@ -202,13 +202,14 @@ parse_float64 :: (line: *string) -> value:float64, success:bool {
 add_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
     new_context: Context;
     push_context new_context {
-        assert(num_cols == 2);
+        assert(num_cols == 3);
         ok: bool;
 
         category := array_add(*categories);
         category.id, ok = parse_int(*from_c_string(col_data[0]));
         if !ok then log_error("Couldn't parse id from string");
         category.name = copy_temporary_string(from_c_string(col_data[1]));
+        category.color = copy_temporary_string(from_c_string(col_data[2]));
     }
     return SQLITE_OK;
 }
@@ -349,6 +350,7 @@ categories: [..] Category;
 Category :: struct {
     id: int;
     name: string;
+    color: string;
 }
 
 transactions_raw : [..]Transaction;

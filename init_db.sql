@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS Categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE
+    name TEXT NOT NULL UNIQUE,
+    color TEXT DEFAULT '000'
 );
 
 CREATE TABLE IF NOT EXISTS Transactions (
@@ -16,13 +17,13 @@ CREATE TABLE IF NOT EXISTS Transactions (
             ON UPDATE NO ACTION
 );
 
-INSERT OR IGNORE INTO Categories(id, name) VALUES(1, "Food");
-INSERT OR IGNORE INTO Categories(id, name) VALUES(2, "Rent");
-INSERT OR IGNORE INTO Categories(id, name) VALUES(3, "Cafe");
-INSERT OR IGNORE INTO Categories(id, name) VALUES(4, "School");
-INSERT OR IGNORE INTO Categories(id, name) VALUES(5, "Fuel");
-INSERT OR IGNORE INTO Categories(id, name) VALUES(6, "Swimming");
-INSERT OR IGNORE INTO Categories(id, name) VALUES(7, "Holiday accomodation");
+INSERT OR IGNORE INTO Categories(id, name, color) VALUES(1, "Food", "540d6e");
+INSERT OR IGNORE INTO Categories(id, name, color) VALUES(2, "Rent", "ee4266");
+INSERT OR IGNORE INTO Categories(id, name, color) VALUES(3, "Cafe", "ffd23f");
+INSERT OR IGNORE INTO Categories(id, name, color) VALUES(4, "School", "3bceac");
+INSERT OR IGNORE INTO Categories(id, name, color) VALUES(5, "Fuel", "0ead69");
+INSERT OR IGNORE INTO Categories(id, name, color) VALUES(6, "Swimming", "1a8fe3");
+INSERT OR IGNORE INTO Categories(id, name, color) VALUES(7, "Holiday accomodation", "f17105");
 
 
 -- INSERT INTO Transactions(amount, details, category_id) VALUES(100.45, "RENT", 2);
