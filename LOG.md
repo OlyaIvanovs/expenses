@@ -81,17 +81,28 @@
 + Add icons for transactions(Remove, Edit, More Info)
 + Remove transaction
 + Add color to category
+
+# 02/06/2023
++ Remove all transactions
++ Upload transactions
 - More info/edit for transactions
+
+# 03/06/2023    
 
 Next:
 categories:
 Task: Add rules for catgory. Remove rules. Edit rules 
 Task: Choose color for category
-Task: Upload transactions
 Task: Add scrollbar for rules and categories
 
 Transactions:
 Task:
-Show transactions in table(Add filter, Edit(change category, name, value))
-Give user a posibility to change category
-Add note to transaction
+Add filter
+Add search
+
+Graphs:
+Task:
+Pie chart
+Column chart(by month)
+Column chart(by month/in 2 years)
+Stacked area chart

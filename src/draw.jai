@@ -469,6 +469,14 @@ draw_buttons_area :: (r: Rect) {
     draw_button(button_area, "Upload transactions");
     ui_id := get_ui_id_from_loc();
     became_active := maybe_set_hot_or_active(ui_id, button_area, .PRESSABLE);
+    if became_active {
+        file_name, ok := get_upload_file_name();
+        if !ok return;
+        ok = upload_transactions_from_file(file_name);
+        if !ok return;
+        ok = get_all_transactions_from_db();
+        if !ok return;
+    }
     
     pad, r = cut_top(r, 36 * dpi_scale);
     button_area, r = cut_top(r, 36 * dpi_scale);

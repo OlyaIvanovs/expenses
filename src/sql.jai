@@ -1,3 +1,22 @@
+initialise_db :: () -> bool {
+    load_file_at_comptime :: (filename: string) -> string {
+        contents, success := read_entire_file(filename);
+        assert(success);
+        return contents;
+    }
+    
+    init_sql :: #run load_file_at_comptime("init_db.sql");
+    errmsg : *u8;
+    result := sqlite3_exec(db, init_sql, null, null, *errmsg);
+    if result != SQLITE_OK {
+        log_error("ERROR: %\n",from_c_string(errmsg));
+        return false;
+    }
+    assert(result == SQLITE_OK);
+    return true;
+}
+
+
 get_daily_spendings :: () -> Daily_Spendings, bool {
     spending_query :: #string END
         SELECT category_id, SUM(amount)
@@ -25,6 +44,27 @@ get_daily_spendings :: () -> Daily_Spendings, bool {
     return daily_spendings, true;
 }
 
+get_all_categories_from_db :: () -> bool {
+    errmsg : *u8;
+    sql_select :: "SELECT * FROM Categories;";
+    result := sqlite3_exec(db, sql_select, transform_category_from_db, null, *errmsg);
+    if result != SQLITE_OK {
+        log_error("ERROR: %\n",from_c_string(errmsg));
+        return false;
+    }
+    return true;
+}
+
+get_all_transactions_from_db :: () -> bool {
+    errmsg : *u8;
+    sql_select_tr :: "SELECT * FROM Transactions;";
+    result := sqlite3_exec(db, sql_select_tr, transafrom_transaction_from_db, null, *errmsg);
+    if result != SQLITE_OK {
+        log_error("ERROR: %\n",from_c_string(errmsg));
+        return false;
+    }
+    return true;
+}
 
 delete_category_from_db :: (id: int) -> bool{
     sql_str :: "DELETE FROM Categories WHERE id = %;";
@@ -57,6 +97,41 @@ execute_simple_db_query :: (select: string) -> bool{
     }
     return true;
 }
+
+transafrom_transaction_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+    new_context: Context;
+    push_context new_context {
+        assert(num_cols == 6);
+        ok: bool;
+
+        transaction := array_add(*transactions);
+        transaction.id, ok = parse_int(*from_c_string(col_data[0]));
+        if !ok then log_error("Couldn't parse id from string");
+        transaction.date = copy_temporary_string(from_c_string(col_data[1]));
+        transaction.amount, ok = parse_float(*from_c_string(col_data[2]));
+        if !ok then log_error("Couldn't parse amount from string");
+        transaction.details = copy_temporary_string(from_c_string(col_data[3]));
+        // transaction.note = copy_temporary_string(from_c_string(col_data[4]));
+        transaction.category_id, ok = parse_int(*from_c_string(col_data[5]));
+        if !ok then log_error("Couldn't parse category_id from string");
+    }
+    return SQLITE_OK;
+}
+
+transform_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+    new_context: Context;
+    push_context new_context {
+        assert(num_cols == 3);
+        ok: bool;
+        category := array_add(*categories);
+        category.id, ok = parse_int(*from_c_string(col_data[0]));
+        if !ok then log_error("Couldn't parse id from string");
+        category.name = copy_temporary_string(from_c_string(col_data[1]));
+        category.color = copy_temporary_string(from_c_string(col_data[2]));
+    }
+    return SQLITE_OK;
+}
+
 
 
 #scope_file
