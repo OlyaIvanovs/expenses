@@ -109,6 +109,7 @@ upload_transactions_from_file :: (file_name: string) -> bool {
     init_string_builder(*query_builder);
     print_to_builder(*query_builder, "BEGIN TRANSACTION;\n");
     for t : transactions_raw {
+        if t.amount < 0 then continue; // do not include income
         insert :: #string QUERY
     INSERT INTO Transactions (transaction_date, amount, details, category_id) VALUES ("%", %, %, %);
     QUERY;

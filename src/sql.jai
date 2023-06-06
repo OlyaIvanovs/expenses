@@ -86,6 +86,11 @@ add_category_to_db :: (id: int, name: string) -> bool {
     return execute_simple_db_query(tprint(sql_str, id, name));
 }
 
+add_transaction_to_db :: (id: int, date: string, amount: float64, details: string, note: string, category_id: int) -> bool {
+    sql_str :: "INSERT OR REPLACE INTO Transactions(id, transaction_date, amount, details, note, category_id) VALUES(%, '%', %, '%', '%', %);";
+    return execute_simple_db_query(tprint(sql_str, id, date, amount, details, note, category_id));
+}
+
 execute_simple_db_query :: (select: string) -> bool{
     query := to_c_string(select);
     defer free(query);
@@ -107,12 +112,12 @@ transafrom_transaction_from_db ::(userdata: *void, num_cols: int, col_data: **u8
         transaction := array_add(*transactions);
         transaction.id, ok = parse_int(*from_c_string(col_data[0]));
         if !ok then log_error("Couldn't parse id from string");
-        transaction.date = copy_temporary_string(from_c_string(col_data[1]));
+        if col_data[1] != null then transaction.date = copy_temporary_string(from_c_string(col_data[1]));
         transaction.amount, ok = parse_float(*from_c_string(col_data[2]));
         if !ok then log_error("Couldn't parse amount from string");
         transaction.details = copy_temporary_string(from_c_string(col_data[3]));
         // transaction.note = copy_temporary_string(from_c_string(col_data[4]));
-        transaction.category_id, ok = parse_int(*from_c_string(col_data[5]));
+        if col_data[5] != null transaction.category_id, ok = parse_int(*from_c_string(col_data[5]));
         if !ok then log_error("Couldn't parse category_id from string");
     }
     return SQLITE_OK;

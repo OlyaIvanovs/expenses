@@ -98,7 +98,6 @@ draw_dashboard :: (main_area: Rect) {
         main_area = shrink(main_area, 50);
         draw_rect(main_area, Colors.BACKGROUND_HIGHLIGHT);
 
-        padding := 4 * dpi_scale;
         bar_rect := cut_left(main_area, (main_area.w / 52) - padding);
 
         for i : 0 .. week_indices.count - 2 {
@@ -136,6 +135,7 @@ draw_dashboard :: (main_area: Rect) {
 should_remove_category := -1;
 should_remove_transaction := -1;
 should_remove_all_transactions := false;
+should_edit_transaction := -1;
 new_category  := -1;;
 
 draw_settings :: (r: Rect) {    
@@ -158,33 +158,40 @@ draw_settings :: (r: Rect) {
     
     // Draw confirmation dialog
     if should_remove_category > -1 {
-        draw_dialog("categories");
-    }else  if should_remove_transaction > -1 {
-        draw_dialog("transactions");
+        draw_remove_dialog("categories");
+    } else  if should_remove_transaction > -1 {
+        draw_remove_dialog("transactions");
     } else if should_remove_all_transactions {
-        draw_dialog("all_transactions");
+        draw_remove_dialog("all_transactions");
+    } else if should_edit_transaction > -1 {
+        draw_edit_transaction_dialog();
     }
 }
 
 draw_categories :: (r: Rect) {
-    padding := 4 * dpi_scale;  // TODO: make global?
     categories_rect := draw_title(r, "Categories");
 
     rect : Rect;
+    parent_ui_id := get_ui_id_from_loc();
     for *category, cat_index: categories {
         show_icons : bool;
         rect, categories_rect = cut_top(categories_rect, 36 * dpi_scale);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
         
+        ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) cat_index * cast(s64) parent_ui_id));
+        became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
+        
+        // Show icons on hover
+        if is_hovering_over(ui_id) {
+            show_icons = true;
+         }
+        
         if cat_index != new_category {
             bottomline := rect;
             bottomline.h = 1 * dpi_scale;
             draw_rect(bottomline, Colors.SELECTION_ACTIVE);
-            
-             // Show icons on hover
-            if mouse_pointer_is_within(rect) {
-                show_icons = true;
-             }
+             
+            if became_active  then new_category = cat_index;
             
             trash_icon, color_icon : Rect;
             trash_icon, rect = cut_right(rect, 20 * dpi_scale);
@@ -199,20 +206,12 @@ draw_categories :: (r: Rect) {
             draw_rect(color_icon, c);
 
             if show_icons {
-                draw_icons(trash_icon, cat_index, "categories");
-             }
-             
-             if mouse_pointer_is_within(rect) {
-                ui_id := get_ui_id_from_loc();
-                became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
-                if became_active  then new_category = cat_index;
+                draw_icons(trash_icon, cat_index, "categories", ui_id);
              }
             
         } else {
-            input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
-            input_rect := cut_top(rect, input_height);
-            input_rect.w = 300;
-            draw_text_input(*text_input, input_rect);
+            ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) cat_index * cast(s64) parent_ui_id));
+            draw_text_input(*text_input, rect, ui_id);
             if category.name.count > 0 { // edit category
                 array_resize(*text_input.text, category.name.count);
                 memcpy(text_input.text.data, category.name.data, category.name.count);
@@ -248,15 +247,16 @@ draw_categories :: (r: Rect) {
     }
 }
 
-draw_icons :: (r: Rect, index: int, mode: string) {
+draw_icons :: (r: Rect, index: int, mode: string, parent_ui_id: Ui_Id) {
     trash_icon_unicode := 0xf1f8;
     trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
     width := cast(float) Simp.prepare_text(font_icons, to_string(*trash_icon_char));
     pen := make_vector2(r.x, r.y + (r.h - font.character_height) / 2 + 2 * dpi_scale);
     
-    if mouse_pointer_is_within(r) {
+    ui_id := get_ui_id_from_loc(parent_id =  parent_ui_id);
+    
+    if is_hovering_over(ui_id) {
         Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DIM);
-        ui_id := get_ui_id_from_loc();
         became_active := maybe_set_hot_or_active(ui_id, r, .PRESSABLE);
         if became_active && mode == "categories" should_remove_category = index;
         if became_active && mode == "transactions" should_remove_transaction = index;
@@ -265,9 +265,122 @@ draw_icons :: (r: Rect, index: int, mode: string) {
     }
 }
 
-draw_dialog :: (mode: string, loc := #caller_location) {
+draw_edit_transaction_dialog :: (loc := #caller_location) {
+    tr := *transactions[transactions.count-1];
     cover := make_rect(10, 10, window_width, window_height);
     draw_rect(cover, Colors.BACKGROUND_TRANSPARENT);
+    ui_id_cover := get_ui_id_from_loc();
+    maybe_set_hot_or_active(ui_id_cover, cover, .NORMAL);
+    
+    dialog := make_rect(
+        cast(float) (0.35 * window_width), 
+        cast(float) (0.35 * window_height), 
+        cast(float) (600 * dpi_scale), 
+        cast(float) (250 * dpi_scale));
+    draw_rect(dialog, Colors.BACKGROUND_LIGHT);
+    
+    dialog = shrink_x(dialog, 30 * dpi_scale);
+    
+    pad, date_area, details_area, amount_area, category_area, note_area: Rect;
+    pad, dialog = cut_top(dialog, 16 * dpi_scale);
+    date_area, dialog = cut_top(dialog, 36 * dpi_scale);
+    details_area, dialog = cut_top(dialog, 36 * dpi_scale);
+    amount_area, dialog = cut_top(dialog, 36 * dpi_scale);
+    category_area, dialog = cut_top(dialog, 36 * dpi_scale);
+    note_area, dialog = cut_top(dialog, 36 * dpi_scale);
+
+    draw_text_in_rect(date_area, tr.date);
+    draw_text_in_rect(category_area, get_category_name(tr.category_id));
+    draw_text_in_rect(note_area, tr.note);
+    
+    // Transaction details
+    ui_id := get_ui_id_from_loc();
+    became_active := maybe_set_hot_or_active(ui_id, details_area, .PRESSABLE, true);
+    if is_hovering_over(ui_id) || ui.active_input == ui_id {
+        draw_rect(details_area, Colors.SEARCH_RESULT_INACTIVE );
+    } 
+
+    if ui.active_input == ui_id {
+        if became_active {
+            array_resize(*text_input.text, tr.details.count);
+            memcpy(text_input.text.data, tr.details.data, tr.details.count);
+        }
+        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
+        input_rect := cut_top(details_area, input_height);
+        draw_text_input(*text_input, input_rect, ui_id);
+        if enter_pressed {
+            ui.active_input = .none;
+        }
+        tr.details = copy_string(cast(string) text_input.text);
+    } else {
+        draw_text_in_rect(details_area, tr.details);
+    }
+    
+    // Transaction amount
+    amount := sprint("%", formatFloat(tr.amount, trailing_width=2, zero_removal=.NO));
+    ui_id_amount := get_ui_id_from_loc();
+    became_active = maybe_set_hot_or_active(ui_id_amount, amount_area, .PRESSABLE, true);
+    if is_hovering_over(ui_id_amount) || ui.active_input == ui_id_amount {
+        draw_rect(amount_area, Colors.SEARCH_RESULT_INACTIVE );
+    } 
+
+    if ui.active_input == ui_id_amount {
+        if became_active {
+            array_resize(*text_input.text, amount.count);
+            memcpy(text_input.text.data, amount.data, amount.count);
+        }
+        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
+        input_rect := cut_top(amount_area, input_height);
+        draw_text_input(*text_input, input_rect, ui_id_amount);
+        if enter_pressed {
+            ui.active_input = .none;
+        }
+        amount_parsed, ok := parse_float64(*cast(string) text_input.text);
+        if ok then tr.amount = amount_parsed;
+    } else {
+        draw_text_in_rect(amount_area, amount);
+    }
+    
+    
+    
+    buttons : Rect;
+    buttons, dialog = cut_bottom(dialog, 70 * dpi_scale);
+    no, yes := cut_right(buttons, xx (buttons.w / 2));
+    
+    yes = shrink_y(shrink_x(yes, 0.2 * yes.w), 0.25 * yes.h);    
+    no = shrink_y(shrink_x(no, 0.2 * no.w), 0.25 * no.h);   
+    
+    draw_button(yes, "Update");
+    draw_button(no, "Cancel");
+    
+    ui_id = get_ui_id_from_loc(loc); 
+    yes_chosen := maybe_set_hot_or_active(ui_id, yes, .PRESSABLE);
+    no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);
+    
+    if yes_chosen {
+        ok := add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
+        transactions[should_edit_transaction] = tr;
+        if !ok then return;
+        
+        should_edit_transaction = -1;
+        new_category = -1;        
+        text_input.text.count = 0;
+        array_ordered_remove_by_index(*transactions, transactions.count-1);
+    }
+    
+    if no_chosen {
+        should_edit_transaction = -1;
+        array_ordered_remove_by_index(*transactions, transactions.count-1);
+    } 
+    
+    return;
+}
+
+draw_remove_dialog :: (mode: string, loc := #caller_location) {
+    cover := make_rect(10, 10, window_width, window_height);
+    draw_rect(cover, Colors.BACKGROUND_TRANSPARENT);
+    ui_id_cover := get_ui_id_from_loc();
+    maybe_set_hot_or_active(ui_id_cover, cover, .NORMAL);
     
     text : string;
     if mode == {
@@ -278,8 +391,6 @@ draw_dialog :: (mode: string, loc := #caller_location) {
         case "transactions";
             text = sprint("Are you sure you want to remove transaction '%'?", transactions[should_remove_transaction].details);
     }
-    
-     
     
     width := cast(float) Simp.prepare_text(font, text);
     dialog := make_rect(
@@ -295,9 +406,7 @@ draw_dialog :: (mode: string, loc := #caller_location) {
     pen := make_vector2(dialog.x + 20 * dpi_scale, dialog.y + (dialog.h - font.character_height) / 2 + 2 * dpi_scale);
     Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
     
-   
     no, yes := cut_right(buttons, xx (buttons.w / 2));
-    
     yes = shrink_y(shrink_x(yes, 0.2 * yes.w), 0.2 * yes.h);    
     no = shrink_y(shrink_x(no, 0.2 * no.w), 0.2 * no.h);   
     
@@ -353,7 +462,6 @@ transactions_scroll_delta :float = 0;
 transactions_scroll_grip :float = 0;
 
 draw_transactions :: (r: Rect) {
-    padding := 4 * dpi_scale;  // TODO: make global?
     title_rect, transactions_rect_wrapper := cut_top(r, 50 * dpi_scale);
     
     title_bottomline := title_rect;
@@ -395,13 +503,21 @@ draw_transactions :: (r: Rect) {
         draw_rect(scrollbar_line, Colors.BACKGROUND_BRIGHT);
     }
     
-     move := (transactions_scroll_delta) / scrollbar.h  * transactions.count * 36 * dpi_scale;
+    count := transactions.count;
+    if should_edit_transaction > -1 then count -= 1;  
+    move := (transactions_scroll_delta) / scrollbar.h  * count * 36 * dpi_scale;
     
     // Transactions
     rect : Rect;
     transactions_rect := make_rect(transactions_rect_wrapper.x, transactions_rect_wrapper.y + move, transactions_rect_wrapper.w, transactions_rect_wrapper.h);
+    parent_ui_id := get_ui_id_from_loc();
+    
+    // Trash icon
+    trash_icon_unicode := 0xf1f8;
+    trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
+    
     for tr, tr_index: transactions {
-        show_icons := false;
+        if tr_index == transactions.count - 1 && should_edit_transaction > -1 then break;  
         rect, transactions_rect = cut_top(transactions_rect, 36 * dpi_scale);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
         
@@ -409,13 +525,33 @@ draw_transactions :: (r: Rect) {
         bottomline.h = 1 * dpi_scale;
         draw_rect(bottomline, Colors.SELECTION_ACTIVE);
         
-        // Show icons on hover
-        if mouse_pointer_is_within(rect) {
-            show_icons = true;
-         }
-    
-        line_width := rect.w;
+        ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) tr_index * cast(s64) parent_ui_id));
+        became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
+        if became_active  {
+            should_edit_transaction = tr_index;
+            array_add(*transactions, transactions[tr_index]);
+        }
+        
         date_rect, details_rect, amount_rect, category_rect, icons_rect: Rect;
+        icons_rect, rect = cut_right(rect, 20 * dpi_scale);
+        
+        // Show icons on hover
+        if is_hovering_over(ui_id) {
+            trash_icon_width := cast(float) Simp.prepare_text(font_icons, to_string(*trash_icon_char));
+            pen := make_vector2(icons_rect.x, icons_rect.y + (icons_rect.h - font.character_height) / 2 + 2 * dpi_scale);
+    
+            if mouse_pointer_is_within(icons_rect) {
+                Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DIM);
+                if became_active {
+                    should_edit_transaction = -1;
+                    should_remove_transaction = tr_index;
+                }
+            } else {
+                Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+            }
+         }
+         
+        line_width := rect.w;
         
         // Date
         date_rect, rect = cut_left(rect, 0.1 * line_width);
@@ -427,35 +563,21 @@ draw_transactions :: (r: Rect) {
 
         // Amount
         amount_rect, rect = cut_left(rect, 0.1 * line_width);
-        draw_text_in_rect(amount_rect, sprint("%", tr.amount));
+        draw_text_in_rect(amount_rect, sprint("%", formatFloat(tr.amount, trailing_width=2, zero_removal=.NO)));
         
         // Category
         category_rect, rect = cut_left(rect, 0.15 * line_width);
-        category_name := "UNCATEGORIZED";
-        if tr.category_id {
-            for categories if it.id == tr.category_id { 
-                category_name =  it.name;
-                break; 
-            }
-        }
-        draw_text_in_rect(category_rect, sprint("%", category_name));
-        
-        icons_rect, rect = cut_right(rect, 20 * dpi_scale); 
-        
-        if show_icons {
-             draw_icons(icons_rect, tr_index, "transactions");
-        }
+        draw_text_in_rect(category_rect, sprint("%", get_category_name(tr.category_id)));
     }
     
     draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
     draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
-    width := cast(float) Simp.prepare_text(font_ui_bold, sprint("Transactions (%)",transactions.count));
+    width := cast(float) Simp.prepare_text(font_ui_bold, sprint("Transactions (%)",count));
     pen := make_vector2(title_rect.x + (title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
     Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
 }
 
 draw_buttons_area :: (r: Rect) {
-    padding := 4 * dpi_scale;  
     title_rect, r := cut_top(r, 50 * dpi_scale);
     
     title_bottomline := title_rect;
@@ -507,22 +629,21 @@ draw_title :: (r: Rect, title: string) -> Rect{
     return rect;
 }
 
-
-draw_text_input :: (using text_input: *Text_Input, input_rect: Rect, loc := #caller_location) {
-    ui_id := get_ui_id_from_loc(loc);
+draw_text_input :: (using text_input: *Text_Input, r: Rect, ui_id: Ui_Id) {
+    // input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
+    // input_rect := cut_top(r, input_height);
+    input_rect := r;
 
     rect := snap_to_grid(input_rect);
-    draw_rect(rect, Colors.BACKGROUND_DARK);
+    // draw_rect(rect, Colors.BACKGROUND_DARK);
     rect = shrink(rect, 1);
-    draw_rect(rect, Colors.BACKGROUND);
+    // draw_rect(rect, Colors.BACKGROUND);
 
     push_scissor(rect);
     defer pop_scissor();
 
     became_active := maybe_set_hot_or_active(ui_id, rect, .TEXT_SELECT);
     // TODO: when activated, make it so that the keyboard events are sent to the input
-
-    padding := 4 * dpi_scale;  // GLOBAL??
 
     // 1. Given current scroll_x, calculate cursor_x and check if it's within allowed boundaries
     // 2. If outside the boundaries, calculate new target for the cursor so that it reaches the closest allowed position
@@ -628,13 +749,37 @@ draw_button :: (rect : Rect, text: string) {
     Simp.draw_prepared_text(font, xx text_pen.x, xx text_pen.y, Colors.UI_DEFAULT);
 }
 
+get_category_name :: (category_id: int) -> string{
+    if category_id {
+        for categories if it.id == category_id { 
+            return  it.name;
+        }
+    }
+    return "UNCATEGORISED";
+}
+
 maybe_set_hot_or_active :: (ui_id: Ui_Id, rect: Rect, pointer_image: Pointer_Image) -> became_active: bool {
     if !mouse_pointer_is_within(rect) return false;
 
     ui.hot = ui_id;
     if ui.hot_last_frame == ui_id || ui.active == ui_id then set_pointer_image(pointer_image);
     if ui.hot_last_frame == ui_id && ui.active == .none && mouse.left.just_pressed {
+        ui.active_input = .none; 
         ui.active = ui_id;
+        return true;
+    }
+    
+    return false;
+}
+
+maybe_set_hot_or_active :: (ui_id: Ui_Id, rect: Rect, pointer_image: Pointer_Image, is_input: bool) -> became_active: bool {
+    if !mouse_pointer_is_within(rect) return false;
+
+    ui.hot = ui_id;
+    if ui.hot_last_frame == ui_id || ui.active == ui_id then set_pointer_image(pointer_image);
+    if ui.hot_last_frame == ui_id && ui.active == .none && mouse.left.just_pressed {
+        ui.active = ui_id;
+        if is_input then ui.active_input = ui_id; 
         return true;
     }
     
@@ -701,6 +846,7 @@ ui: struct {
     active: Ui_Id = .none;
     hot:    Ui_Id = .none;
     hot_last_frame: Ui_Id = .none;
+    active_input: Ui_Id = .none;
 };
 
 
