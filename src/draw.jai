@@ -266,21 +266,28 @@ draw_icons :: (r: Rect, index: int, mode: string, parent_ui_id: Ui_Id) {
     }
 }
 
-draw_edit_transaction_dialog :: (loc := #caller_location) {
-    tr := *transactions[transactions.count-1];
+draw_dialog_base :: (height: float, width: float) -> dialog: Rect {
+    shrink := 30 * dpi_scale; 
     cover := make_rect(10, 10, window_width, window_height);
     draw_rect(cover, Colors.BACKGROUND_TRANSPARENT);
     ui_id_cover := get_ui_id_from_loc();
     maybe_set_hot_or_active(ui_id_cover, cover, .NORMAL);
     
     dialog := make_rect(
-        cast(float) (0.35 * window_width), 
-        cast(float) (0.35 * window_height), 
-        cast(float) (600 * dpi_scale), 
-        cast(float) (250 * dpi_scale));
+        cast(float) ((window_width - width) / 2), 
+        cast(float) (0.45 * window_height), 
+        cast(float) (width * dpi_scale + 2 * shrink), 
+        cast(float) (height * dpi_scale));
     draw_rect(dialog, Colors.BACKGROUND_LIGHT);
     
-    dialog = shrink_x(dialog, 30 * dpi_scale);
+    dialog = shrink_x(dialog, shrink);
+    return dialog;
+}
+
+
+draw_edit_transaction_dialog :: (loc := #caller_location) {
+    tr := *transactions[transactions.count-1];
+    dialog := draw_dialog_base(260, 600);
     
     pad, date_area, details_area, amount_area, category_area, note_area: Rect;
     pad, dialog = cut_top(dialog, 16 * dpi_scale);
@@ -290,22 +297,13 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     category_area, dialog = cut_top(dialog, 36 * dpi_scale);
     note_area, dialog = cut_top(dialog, 36 * dpi_scale);
 
+    // Transaction's date
     draw_text_in_rect(date_area, tr.date);
-    note_text := tr.note;
-    if note_text == "" {
-        note_text = "No note for the transaction";
-        draw_text_in_rect(note_area, note_text, Colors.UI_DIM);
-    } else {
-        draw_text_in_rect(note_area, note_text);
-    }
     
-    // Transaction details
+    // Transaction's details
     ui_id := get_ui_id_from_loc();
     became_active := maybe_set_hot_or_active(ui_id, details_area, .PRESSABLE, true);
-    if is_hovering_over(ui_id) || ui.active_input == ui_id {
-        draw_rect(details_area, Colors.SEARCH_RESULT_INACTIVE );
-    } 
-
+    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(details_area, Colors.SEARCH_RESULT_INACTIVE );
     if ui.active_input == ui_id {
         if became_active {
             array_resize(*text_input.text, tr.details.count);
@@ -314,27 +312,37 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
         input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
         input_rect := cut_top(details_area, input_height);
         draw_text_input(*text_input, input_rect, ui_id);
-        if enter_pressed {
-            ui.active_input = .none;
-        }
+        if enter_pressed then ui.active_input = .none;
         tr.details = copy_string(cast(string) text_input.text);
     } else {
-        details_text := tr.details;
-        if details_text == "" { 
-            details_text = "No transaction's details";
-            draw_text_in_rect(details_area, details_text, Colors.UI_DIM);
-        } else {
-            draw_text_in_rect(details_area, details_text);
+        if tr.details == "" draw_text_in_rect(details_area, "No transaction's details", Colors.UI_DIM); else draw_text_in_rect(details_area, tr.details); 
+    } 
+    
+    // Transaction's note
+    ui_id = get_ui_id_from_loc();
+    became_active = maybe_set_hot_or_active(ui_id, note_area, .PRESSABLE, true);
+    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(note_area, Colors.SEARCH_RESULT_INACTIVE );
+
+    if ui.active_input == ui_id {
+        if became_active {
+            array_resize(*text_input.text, tr.note.count);
+            memcpy(text_input.text.data, tr.note.data, tr.note.count);
         }
+        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
+        input_rect := cut_top(note_area, input_height);
+        draw_text_input(*text_input, input_rect, ui_id);
+        if enter_pressed then ui.active_input = .none;
+        tr.note = copy_string(cast(string) text_input.text);
+    } else {
+        if tr.note == "" then draw_text_in_rect(note_area, "No note for the transaction", Colors.UI_DIM); else draw_text_in_rect(note_area, tr.note);
     }
     
-    // Transaction amount
+    
+    // Transaction's amount
     amount := sprint("%", formatFloat(tr.amount, trailing_width=2, zero_removal=.NO));
     ui_id= get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(ui_id, amount_area, .PRESSABLE, true);
-    if is_hovering_over(ui_id) || ui.active_input == ui_id {
-        draw_rect(amount_area, Colors.SEARCH_RESULT_INACTIVE );    } 
-
+    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(amount_area, Colors.SEARCH_RESULT_INACTIVE );
     if ui.active_input == ui_id {
         if became_active {
             array_resize(*text_input.text, amount.count);
@@ -343,29 +351,22 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
         input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
         input_rect := cut_top(amount_area, input_height);
         draw_text_input(*text_input, input_rect, ui_id);
-        if enter_pressed {
-            ui.active_input = .none;
-        }
+        if enter_pressed then  ui.active_input = .none; 
         amount_parsed, ok := parse_float64(*cast(string) text_input.text);
         if ok then tr.amount = amount_parsed;
     } else {
         draw_text_in_rect(amount_area, amount);
     }
     
-    // Transaction category
+    // Transaction's category
     ui_id = get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(ui_id, category_area, .PRESSABLE, true);
-    if is_hovering_over(ui_id) || ui.active_input == ui_id {
-        draw_rect(category_area, Colors.SEARCH_RESULT_INACTIVE);
-    } 
+    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(category_area, Colors.SEARCH_RESULT_INACTIVE); 
 
     if ui.active_input == ui_id {
         // Draw dropdown
         should_show_category_dropdown = true;
-        
-        if enter_pressed {
-            ui.active_input = .none;
-        }
+        if enter_pressed then ui.active_input = .none;
     } else {
         should_show_category_dropdown = false;
         draw_text_in_rect(category_area, get_category_name(tr.category_id));
@@ -495,12 +496,7 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     return;
 }
 
-draw_remove_dialog :: (mode: string, loc := #caller_location) {
-    cover := make_rect(10, 10, window_width, window_height);
-    draw_rect(cover, Colors.BACKGROUND_TRANSPARENT);
-    ui_id_cover := get_ui_id_from_loc();
-    maybe_set_hot_or_active(ui_id_cover, cover, .NORMAL);
-    
+draw_remove_dialog :: (mode: string, loc := #caller_location) {    
     text : string;
     if mode == {
         case "categories"; 
@@ -510,15 +506,11 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
         case "transactions";
             text = sprint("Are you sure you want to remove transaction '%'?", transactions[should_remove_transaction].details);
     }
-    
     width := cast(float) Simp.prepare_text(font, text);
-    dialog := make_rect(
-        cast(float) (0.35 * window_width), 
-        cast(float) (0.75 * window_height), 
-        cast(float) (width + 40 * dpi_scale), 
-        cast(float) (120 * dpi_scale));
-    draw_rect(dialog, Colors.BACKGROUND_LIGHT);
+    dialog := draw_dialog_base(120, width + 40);
+
     
+    // Buttons
     buttons : Rect;
     buttons, dialog = cut_bottom(dialog, 60 * dpi_scale);
     

@@ -80,7 +80,7 @@
 + Add button upload transactions
 + Add icons for transactions(Remove, Edit, More Info)
 + Remove transaction
-+ Add color to category
++ Add color icon to category
 
 # 02/06/2023
 + Remove all transactions
@@ -91,8 +91,8 @@
 
 # 07/06/2023
 + Add dropdown for choosing category
-- Edit transaction(note)
-- Dialogs should be on the same level
++ Edit transaction(note)
++ Dialogs should be on the same level
 - Close dialog on click outside it
 
 # 08/06/2023
@@ -103,6 +103,9 @@ categories:
 Task: Add rules for category. Remove rules. Edit rules 
 Task: Choose color for category (Edit category in dialog?)
 Task: Add scrollbar for rules and categories
+
+Task: mouse scroll
+Task: one size buttons(?)
 
 Transactions:
 Task:
