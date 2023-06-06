@@ -18,7 +18,7 @@ Colors :: struct {
     CYAN                    :: Color.{ r = 0, g =1, b = 1};
 
     BACKGROUND              :: Color.{ r = 0.0, g = 0.25, b = 0.32 }; 
-    BACKGROUND_TRANSPARENT  :: Color.{ r = 0.086, g = 0.133, b = 0.165, a = 0.7 };
+    BACKGROUND_TRANSPARENT  :: Color.{ r = 0.086, g = 0.133, b = 0.165, a = 0.8 };
     BACKGROUND_DARK         :: Color.{ r = 0.0, g = 0.13, b = 0.16 };
     BACKGROUND_HIGHLIGHT    :: Color.{ r = 0.0, g = 0.38, b = 0.48 };
     BACKGROUND_LIGHT        :: Color.{ r = 0.0, g = 0.19, b = 0.24 };

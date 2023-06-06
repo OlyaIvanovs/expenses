@@ -85,18 +85,28 @@
 # 02/06/2023
 + Remove all transactions
 + Upload transactions
-- More info/edit for transactions
 
-# 03/06/2023    
+# 06/06/2023    
++ Edit transaction(Details & amount)
+
+# 07/06/2023
++ Add dropdown for choosing category
+- Edit transaction(note)
+- Dialogs should be on the same level
+- Close dialog on click outside it
+
+# 08/06/2023
+
 
 Next:
 categories:
-Task: Add rules for catgory. Remove rules. Edit rules 
-Task: Choose color for category
+Task: Add rules for category. Remove rules. Edit rules 
+Task: Choose color for category (Edit category in dialog?)
 Task: Add scrollbar for rules and categories
 
 Transactions:
 Task:
+Validation edit form
 Add filter
 Add search
 
