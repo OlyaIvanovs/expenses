@@ -93,28 +93,32 @@
 + Add dropdown for choosing category
 + Edit transaction(note)
 + Dialogs should be on the same level
-- Close dialog on click outside it
++ Close dialog on click outside it
+- Show rules(add new table to db)
+- Add rule
+- Remove rule
+- Edit rule
 
 # 08/06/2023
+- Add scrollbar for rules
+- Edit category
+- Add color picker
+
+# 09/06/2023
+- Add scrollbar for categories
+- Add transactions search
+
+# 12/06/2023
+- Transactions filter
 
 
-Next:
-categories:
-Task: Add rules for category. Remove rules. Edit rules 
-Task: Choose color for category (Edit category in dialog?)
-Task: Add scrollbar for rules and categories
-
-Task: mouse scroll
-Task: one size buttons(?)
-
-Transactions:
-Task:
-Validation edit form
-Add filter
-Add search
+# Next:
+Task: Mouse scroll
+Task: One size buttons(?)
+Task: Validation edit form
+Task: Update style
 
 Graphs:
-Task:
 Pie chart
 Column chart(by month)
 Column chart(by month/in 2 years)

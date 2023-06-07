@@ -271,7 +271,15 @@ draw_dialog_base :: (height: float, width: float) -> dialog: Rect {
     cover := make_rect(10, 10, window_width, window_height);
     draw_rect(cover, Colors.BACKGROUND_TRANSPARENT);
     ui_id_cover := get_ui_id_from_loc();
-    maybe_set_hot_or_active(ui_id_cover, cover, .NORMAL);
+    became_active := maybe_set_hot_or_active(ui_id_cover, cover, .NORMAL);
+    
+    if became_active {
+        should_remove_category = -1;
+        should_remove_transaction = -1;
+        should_remove_all_transactions = false;
+        should_edit_transaction = -1;
+        should_show_category_dropdown = false;
+    }
     
     dialog := make_rect(
         cast(float) ((window_width - width) / 2), 
@@ -509,7 +517,6 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
     width := cast(float) Simp.prepare_text(font, text);
     dialog := draw_dialog_base(120, width + 40);
 
-    
     // Buttons
     buttons : Rect;
     buttons, dialog = cut_bottom(dialog, 60 * dpi_scale);
@@ -579,7 +586,6 @@ draw_transactions :: (r: Rect) {
     
     title_bottomline := title_rect;
     title_bottomline.h = 3 * dpi_scale;
-    
     transactions_rect_wrapper = shrink_x(transactions_rect_wrapper, 50 * dpi_scale);
    
     // Scroll bar
@@ -603,16 +609,10 @@ draw_transactions :: (r: Rect) {
         if ui.active == ui_id {
            transactions_scroll_delta = (scrollbar.y + scrollbar.h) - mouse.pointer.y;
            if transactions_scroll_delta < 0 then transactions_scroll_delta = 0;
-           if transactions_scroll_delta + scroll_h > scrollbar.h {
-                 transactions_scroll_delta = scrollbar.h - scroll_h;
-           }
+           if transactions_scroll_delta + scroll_h > scrollbar.h transactions_scroll_delta = scrollbar.h - scroll_h;
         }
         
-        if is_hovering_over(ui_id) {
-            draw_rect(scroll, Colors.BACKGROUND_HIGHLIGHT);
-        } else {
-            draw_rect(scroll, Colors.BACKGROUND_BRIGHT);
-        }
+        if is_hovering_over(ui_id) then draw_rect(scroll, Colors.BACKGROUND_HIGHLIGHT); else draw_rect(scroll, Colors.BACKGROUND_BRIGHT);
         draw_rect(scrollbar_line, Colors.BACKGROUND_BRIGHT);
     }
     
@@ -634,7 +634,7 @@ draw_transactions :: (r: Rect) {
     trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
     
     for tr, tr_index: transactions {
-        if tr_index == transactions.count - 1 && should_edit_transaction > -1 then break;  
+        if tr_index == (count - 1) && should_edit_transaction > -1 then break;  
         rect, transactions_rect = cut_top(transactions_rect, 36 * dpi_scale);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
         
@@ -644,10 +644,6 @@ draw_transactions :: (r: Rect) {
         
         ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) tr_index * cast(s64) parent_ui_id));
         became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
-        if became_active  {
-            should_edit_transaction = tr_index;
-            array_add(*transactions, transactions[tr_index]);
-        }
         
         date_rect, details_rect, amount_rect, category_rect, icons_rect: Rect;
         icons_rect, rect = cut_right(rect, 20 * dpi_scale);
@@ -659,14 +655,16 @@ draw_transactions :: (r: Rect) {
     
             if mouse_pointer_is_within(icons_rect) {
                 Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DIM);
-                if became_active {
-                    should_edit_transaction = -1;
-                    should_remove_transaction = tr_index;
-                }
+                if became_active then should_remove_transaction = tr_index;
             } else {
                 Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
             }
          }
+        
+        if became_active && should_remove_transaction < 0 {
+            should_edit_transaction = tr_index;
+            array_add(*transactions, transactions[tr_index]);
+        }
          
         line_width := rect.w;
         
@@ -687,6 +685,7 @@ draw_transactions :: (r: Rect) {
         draw_text_in_rect(category_rect, get_category_name(tr.category_id));
     }
     
+    // Title
     draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
     draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
     width := cast(float) Simp.prepare_text(font_ui_bold, sprint("Transactions (%)",count));
@@ -729,10 +728,12 @@ draw_buttons_area :: (r: Rect) {
     draw_button(button_area, "Add transaction");
     ui_id = get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(ui_id, button_area, .PRESSABLE);
+    
+    return;
 }
 
 
-draw_title :: (r: Rect, title: string) -> Rect{
+draw_title :: (r: Rect, title: string) -> Rect {
     title_rect, rect := cut_top(r, 50 * dpi_scale);
 
     title_bottomline := title_rect;
