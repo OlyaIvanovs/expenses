@@ -22,6 +22,9 @@ main :: () {
     
     ok = get_all_categories_from_db();
     if !ok return;
+    
+    ok = get_all_rules_from_db();
+    if !ok return;
 
     // Window
     window_x, window_y := platform_get_biggest_monitor_pos();
@@ -222,6 +225,13 @@ Category :: struct {
     id: int;
     name: string;
     color: string;
+}
+
+rules: [..] Rule;
+Rule :: struct {
+    id: int;
+    name: string;
+    category_id: int;
 }
 
 transactions_raw : [..]Transaction;

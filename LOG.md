@@ -94,14 +94,16 @@
 + Edit transaction(note)
 + Dialogs should be on the same level
 + Close dialog on click outside it
-- Show rules(add new table to db)
-- Add rule
++ Show rules(add new table to db)
 - Remove rule
 - Edit rule
+- Add rule
 
 # 08/06/2023
 - Add scrollbar for rules
+- Add transaction
 - Edit category
+- Add category
 - Add color picker
 
 # 09/06/2023

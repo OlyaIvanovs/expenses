@@ -136,6 +136,8 @@ should_remove_category := -1;
 should_remove_transaction := -1;
 should_remove_all_transactions := false;
 should_edit_transaction := -1;
+should_edit_rule := -1;
+should_remove_rule := -1;
 should_show_category_dropdown := false;
 new_category  := -1;;
 
@@ -279,6 +281,8 @@ draw_dialog_base :: (height: float, width: float) -> dialog: Rect {
         should_remove_all_transactions = false;
         should_edit_transaction = -1;
         should_show_category_dropdown = false;
+        should_edit_rule = -1;
+        should_remove_rule = -1;
     }
     
     dialog := make_rect(
@@ -569,9 +573,61 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
 }
 
 draw_rules :: (r: Rect) {
-    rules_rect := draw_title(r, "Rules");
-    
     rect: Rect;
+    rules_rect := draw_title(r, "Rules");
+    parent_ui_id := get_ui_id_from_loc();
+    
+    // Trash icon
+    trash_icon_unicode := 0xf1f8;
+    trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
+    
+    count := rules.count;
+    if should_edit_rule > -1 then count -= 1;  
+    
+    for rule, rule_index: rules {
+        if rule_index == (count - 1) && should_edit_rule > -1 then break;  
+        rect, rules_rect = cut_top(rules_rect, 36 * dpi_scale);
+        draw_rect(rect, Colors.BACKGROUND_LIGHT);
+        
+        bottomline := rect;
+        bottomline.h = 1 * dpi_scale;
+        draw_rect(bottomline, Colors.SELECTION_ACTIVE);
+        
+        ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) rule_index * cast(s64) parent_ui_id));
+        became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
+        
+        details_rect, category_rect, icons_rect: Rect;
+        icons_rect, rect = cut_right(rect, 20 * dpi_scale);
+        
+        // Show icons on hover
+        if is_hovering_over(ui_id) {
+            trash_icon_width := cast(float) Simp.prepare_text(font_icons, to_string(*trash_icon_char));
+            pen := make_vector2(icons_rect.x, icons_rect.y + (icons_rect.h - font.character_height) / 2 + 2 * dpi_scale);
+    
+            if mouse_pointer_is_within(icons_rect) {
+                Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DIM);
+                if became_active then should_remove_rule = rule_index;
+            } else {
+                Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+            }
+         }
+        
+        if became_active && should_remove_rule < 0 {
+            should_edit_rule = rule_index;
+            array_add(*rules, rules[rule_index]);
+        }
+         
+        line_width := rect.w;
+        
+        // Details
+        details_rect, rect = cut_left(rect, 0.5 * line_width);
+        draw_text_in_rect(details_rect, rule.name);
+        
+        // Category
+        category_rect, rect = cut_left(rect, 0.4 * line_width);
+        draw_text_in_rect(category_rect, get_category_name(rule.category_id));
+    }
+    
     rect, rules_rect = cut_top(rules_rect, 36 * dpi_scale);
     draw_button(rect, "Add a new rule");
 }

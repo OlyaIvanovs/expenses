@@ -55,6 +55,17 @@ get_all_categories_from_db :: () -> bool {
     return true;
 }
 
+get_all_rules_from_db :: () -> bool {
+    errmsg : *u8;
+    sql_select :: "SELECT * FROM Rules;";
+    result := sqlite3_exec(db, sql_select, transform_rule_from_db, null, *errmsg);
+    if result != SQLITE_OK {
+        log_error("ERROR: %\n",from_c_string(errmsg));
+        return false;
+    }
+    return true;
+}
+
 get_all_transactions_from_db :: () -> bool {
     errmsg : *u8;
     sql_select_tr :: "SELECT * FROM Transactions;";
@@ -133,6 +144,21 @@ transform_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, co
         if !ok then log_error("Couldn't parse id from string");
         category.name = copy_temporary_string(from_c_string(col_data[1]));
         category.color = copy_temporary_string(from_c_string(col_data[2]));
+    }
+    return SQLITE_OK;
+}
+
+transform_rule_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+    new_context: Context;
+    push_context new_context {
+        assert(num_cols == 3);
+        ok: bool;
+        rule := array_add(*rules);
+        rule.id, ok = parse_int(*from_c_string(col_data[0]));
+        if !ok then log_error("Couldn't parse id from string");
+        rule.name = copy_temporary_string(from_c_string(col_data[1]));
+        rule.category_id, ok = parse_int(*from_c_string(col_data[2]));
+        if !ok then log_error("Couldn't parse id from string");
     }
     return SQLITE_OK;
 }

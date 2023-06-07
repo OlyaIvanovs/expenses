@@ -91,18 +91,10 @@ upload_transactions_from_file :: (file_name: string) -> bool {
         t.date = row.fields[1];
         t.amount, ok = parse_float64(*row.fields[6]);
         if !ok then log_error("Couldn't parse amount as float: %\n", row.fields[6]);
-        t.details = row.fields[5];
-        if contains_nocase(t.details, "pak n save fuel") || contains_nocase(t.details, "bp"){
-            t.category_id = 5;
-        } else if contains_nocase(t.details, "pak n save") || contains_nocase(t.details, "countdown") {
-            t.category_id = 1;
-        } else if contains_nocase(t.details, "pizza") || contains_nocase(t.details, "Donalds") || contains_nocase(t.details, "KFC") || contains_nocase(t.details, "burger") || contains_nocase(t.details, "DOMINOS") {
-            t.category_id = 3;
-        } else if contains_nocase(t.details, "swim") {
-            t.category_id = 6;
-        } else if contains_nocase(t.details, "hotel") {
-            t.category_id = 7;
-        }
+        t.details = row.fields[5]; 
+        for rule: rules {
+            if contains_nocase(t.details, rule.name) then t.category_id = rule.category_id; 
+        } 
     }
 
     query_builder: String_Builder;
