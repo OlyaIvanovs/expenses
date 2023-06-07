@@ -95,9 +95,10 @@
 + Dialogs should be on the same level
 + Close dialog on click outside it
 + Show rules(add new table to db)
++ Edit rule
 - Remove rule
-- Edit rule
 - Add rule
+- Common function for drawing the category dropdown
 
 # 08/06/2023
 - Add scrollbar for rules

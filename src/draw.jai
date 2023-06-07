@@ -132,6 +132,11 @@ draw_dashboard :: (main_area: Rect) {
     }
 }
 
+// Scroll global data
+transactions_scroll_delta :float = 0;
+dropdown_scroll_delta :float = 0;
+transactions_scroll_grip :float = 0;
+
 should_remove_category := -1;
 should_remove_transaction := -1;
 should_remove_all_transactions := false;
@@ -168,6 +173,8 @@ draw_settings :: (r: Rect) {
         draw_remove_dialog("all_transactions");
     } else if should_edit_transaction > -1 {
         draw_edit_transaction_dialog();
+    } else if should_edit_rule > -1 {
+        draw_edit_rule_dialog();
     }
 }
 
@@ -572,20 +579,189 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
     return;
 }
 
-draw_rules :: (r: Rect) {
+draw_edit_rule_dialog :: (loc := #caller_location) {
+    rule := *rules[rules.count-1];
+    dialog := draw_dialog_base(160, 600);
+    
+    pad, date_area, details_area, amount_area, category_area, note_area: Rect;
+    pad, dialog = cut_top(dialog, 16 * dpi_scale);
+    details_area, dialog = cut_top(dialog, 36 * dpi_scale);
+    category_area, dialog = cut_top(dialog, 36 * dpi_scale);
+    
+    // Rule's details
+    ui_id := get_ui_id_from_loc();
+    became_active := maybe_set_hot_or_active(ui_id, details_area, .PRESSABLE, true);
+    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(details_area, Colors.SEARCH_RESULT_INACTIVE );
+    if ui.active_input == ui_id {
+        if became_active {
+            array_resize(*text_input.text, rule.name.count);
+            memcpy(text_input.text.data, rule.name.data, rule.name.count);
+        }
+        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
+        input_rect := cut_top(details_area, input_height);
+        draw_text_input(*text_input, input_rect, ui_id);
+        if enter_pressed then ui.active_input = .none;
+        rule.name = copy_string(cast(string) text_input.text);
+    } else {
+        draw_text_in_rect(details_area, rule.name); 
+    } 
+    
+    
+    // Rule's category
+    ui_id = get_ui_id_from_loc();
+    became_active = maybe_set_hot_or_active(ui_id, category_area, .PRESSABLE, true);
+    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(category_area, Colors.SEARCH_RESULT_INACTIVE); 
+
+    if ui.active_input == ui_id {
+        // Draw dropdown
+        should_show_category_dropdown = true;
+        if enter_pressed then ui.active_input = .none;
+    } else {
+        should_show_category_dropdown = false;
+        draw_text_in_rect(category_area, get_category_name(rule.category_id));
+    }
+    
+    // Buttons
+    buttons : Rect;
+    buttons, dialog = cut_bottom(dialog, 70 * dpi_scale);
+    no, yes := cut_right(buttons, xx (buttons.w / 2));
+    
+    yes = shrink_y(shrink_x(yes, 0.2 * yes.w), 0.25 * yes.h);    
+    no = shrink_y(shrink_x(no, 0.2 * no.w), 0.25 * no.h);   
+    
+    draw_button(yes, "Update");
+    draw_button(no, "Cancel");
+    
+    ui_id = get_ui_id_from_loc(loc); 
+    yes_chosen := maybe_set_hot_or_active(ui_id, yes, .PRESSABLE);
+    no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);
+    
+    if yes_chosen {
+        ok := add_rule_to_db(rule.id, rule.name,  rule.category_id);
+        rules[should_edit_rule] = rule;
+        if !ok then return;
+        
+        should_edit_rule = -1;
+        text_input.text.count = 0;
+        array_ordered_remove_by_index(*rules, rules.count-1);
+    }
+    
+    if no_chosen {
+        should_edit_rule = -1;
+        array_ordered_remove_by_index(*rules, rules.count-1);
+    } 
+    
+    
+    // Draw dropdown
+    if should_show_category_dropdown {
+        dropdown_wrapper_height := 200 * dpi_scale; 
+        dropdown_height := categories.count * 36 * dpi_scale;
+        dropdown_wrapper := make_rect(
+            category_area.x, 
+            category_area.y + category_area.h  -  dropdown_wrapper_height, 
+            category_area.w, 
+            dropdown_wrapper_height);
+        draw_rect(dropdown_wrapper, Colors.SEARCH_RESULT_INACTIVE);
+        ui_id := get_ui_id_from_loc();
+        maybe_set_hot_or_active(ui_id, dropdown_wrapper, .NORMAL);  
+        
+        push_scissor(dropdown_wrapper);
+        defer pop_scissor();
+                           
+        // Scroll bar
+        scrollbar, scrollbar_line : Rect;
+        scrollbar, dropdown_wrapper = cut_right(dropdown_wrapper, 10 * dpi_scale);
+        scrollbar_line, scrollbar = cut_right(scrollbar, 2 * dpi_scale);
+        scroll_h := cast(float) scrollbar.h * scrollbar.h / dropdown_height; 
+        if dropdown_height > dropdown_wrapper_height { 
+            scroll_y := cast(float) scrollbar.y + (scrollbar.h - scroll_h) - dropdown_scroll_delta;
+            if scroll_y + scroll_h > scrollbar.y + scrollbar.h then scroll_y = scrollbar.y + scrollbar.h - scroll_h;
+            if scroll_y < scrollbar.y then scroll_y = scrollbar.y;
+            scroll := make_rect(cast(float) scrollbar.x, scroll_y, cast(float) scrollbar.w, scroll_h);
+            
+            ui_id := get_ui_id_from_loc();
+            became_active := maybe_set_hot_or_active(ui_id, scroll, .PRESSABLE, false);
+            if ui.active == ui_id {
+                dropdown_scroll_delta = (scrollbar.y + scrollbar.h) - mouse.pointer.y;
+                if dropdown_scroll_delta < 0 then dropdown_scroll_delta = 0;
+                if dropdown_scroll_delta + scroll_h > scrollbar.h then dropdown_scroll_delta = scrollbar.h - scroll_h;
+            }
+            
+            if is_hovering_over(ui_id) {
+                draw_rect(scroll, Colors.BACKGROUND_HIGHLIGHT);
+            } else {
+                draw_rect(scroll, Colors.BACKGROUND_BRIGHT);
+            }
+            
+            draw_rect(scrollbar_line, Colors.BACKGROUND_BRIGHT);
+        }
+        
+        move := (dropdown_scroll_delta) / scrollbar.h  * dropdown_height;
+        dropdown_rect := make_rect(
+            dropdown_wrapper.x, 
+            dropdown_wrapper.y + dropdown_wrapper_height - dropdown_height + move, 
+            dropdown_wrapper.w, 
+            dropdown_height);
+         
+        rect : Rect;        
+        parent_ui_id := get_ui_id_from_loc();  
+
+        // Chosen category should go first
+        rect, dropdown_rect = cut_top(dropdown_rect, 36 * dpi_scale);
+        ui_id = get_ui_id_from_loc();
+        
+        if is_hovering_over(ui_id) {
+            draw_rect(rect, Colors.BACKGROUND_LIGHT);
+        }
+        
+        maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);                     
+        width := cast(float) Simp.prepare_text(font, get_category_name(rule.category_id)); // Difference
+        pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
+        Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+        
+        // Other categories go next 
+        for *category, cat_index: categories {
+            if category.id == rule.category_id then continue;
+            rect, dropdown_rect = cut_top(dropdown_rect, 36 * dpi_scale);
+            ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) cat_index * cast(s64) parent_ui_id));
+            
+            if is_hovering_over(ui_id) {
+                draw_rect(rect, Colors.BACKGROUND_LIGHT);
+            }
+            
+            became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);             
+            if became_active {  // Difference
+                rule.category_id = category.id;
+                for *tr: transactions {
+                    for rule: rules {
+                        if contains_nocase(tr.details, rule.name) then tr.category_id = rule.category_id; 
+                    } 
+                }
+                dropdown_scroll_delta = 0;
+            }
+            
+            width := cast(float) Simp.prepare_text(font, category.name);
+            pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
+            Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+        }
+    }
+    
+    return;
+}
+
+draw_rules :: (r: Rect) { 
+    count := rules.count;
+    if should_edit_rule > -1 then count -= 1;
+    
     rect: Rect;
-    rules_rect := draw_title(r, "Rules");
-    parent_ui_id := get_ui_id_from_loc();
+    rules_rect := draw_title(r, tprint("Rules(%)", count));
+    parent_ui_id := get_ui_id_from_loc();  
     
     // Trash icon
     trash_icon_unicode := 0xf1f8;
     trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
-    
-    count := rules.count;
-    if should_edit_rule > -1 then count -= 1;  
-    
     for rule, rule_index: rules {
-        if rule_index == (count - 1) && should_edit_rule > -1 then break;  
+        if rule_index == count && should_edit_rule > -1 then break;  
         rect, rules_rect = cut_top(rules_rect, 36 * dpi_scale);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
         
@@ -631,11 +807,6 @@ draw_rules :: (r: Rect) {
     rect, rules_rect = cut_top(rules_rect, 36 * dpi_scale);
     draw_button(rect, "Add a new rule");
 }
-
-// Scroll global data
-transactions_scroll_delta :float = 0;
-dropdown_scroll_delta :float = 0;
-transactions_scroll_grip :float = 0;
 
 draw_transactions :: (r: Rect) {
     title_rect, transactions_rect_wrapper := cut_top(r, 50 * dpi_scale);
@@ -690,7 +861,7 @@ draw_transactions :: (r: Rect) {
     trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
     
     for tr, tr_index: transactions {
-        if tr_index == (count - 1) && should_edit_transaction > -1 then break;  
+        if tr_index == count && should_edit_transaction > -1 then break;  
         rect, transactions_rect = cut_top(transactions_rect, 36 * dpi_scale);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
         
