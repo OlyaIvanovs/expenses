@@ -96,7 +96,7 @@
 + Close dialog on click outside it
 + Show rules(add new table to db)
 + Edit rule
-- Remove rule
++ Remove rule
 - Add rule
 - Common function for drawing the category dropdown
 
@@ -105,10 +105,10 @@
 - Add transaction
 - Edit category
 - Add category
-- Add color picker
+- Add scrollbar for categories
 
 # 09/06/2023
-- Add scrollbar for categories
+- Add color picker
 - Add transactions search
 
 # 12/06/2023

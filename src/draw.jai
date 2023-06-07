@@ -166,15 +166,17 @@ draw_settings :: (r: Rect) {
     
     // Draw confirmation dialog
     if should_remove_category > -1 {
-        draw_remove_dialog("categories");
+        draw_remove_dialog("category");
     } else  if should_remove_transaction > -1 {
-        draw_remove_dialog("transactions");
+        draw_remove_dialog("transaction");
     } else if should_remove_all_transactions {
         draw_remove_dialog("all_transactions");
     } else if should_edit_transaction > -1 {
         draw_edit_transaction_dialog();
     } else if should_edit_rule > -1 {
         draw_edit_rule_dialog();
+    } else if should_remove_rule > -1 {
+        draw_remove_dialog("rule");
     }
 }
 
@@ -518,11 +520,13 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
 draw_remove_dialog :: (mode: string, loc := #caller_location) {    
     text : string;
     if mode == {
-        case "categories"; 
+        case "category"; 
             text = sprint("Are you sure you want to remove category '%'?", categories[should_remove_category].name);
-         case "all_transactions"; 
+        case "rule"; 
+            text = sprint("Are you sure you want to remove rule '%'?", rules[should_remove_rule].name);
+        case "all_transactions"; 
             text = sprint("Are you sure you want to remove all transactions?");
-        case "transactions";
+        case "transaction";
             text = sprint("Are you sure you want to remove transaction '%'?", transactions[should_remove_transaction].details);
     }
     width := cast(float) Simp.prepare_text(font, text);
@@ -547,18 +551,30 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
     no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);
     
     if yes_chosen if mode == {
-        case "categories"; 
+        case "category"; 
             ok := delete_category_from_db(categories[should_remove_category].id);
             if !ok then return;
             array_ordered_remove_by_index(*categories, should_remove_category);
             should_remove_category = -1;
             return;
             
-        case "transactions";
+        case "transaction";
             ok := delete_transaction_from_db(transactions[should_remove_transaction].id);
             if !ok then return;
             array_ordered_remove_by_index(*transactions, should_remove_transaction);
             should_remove_transaction = -1;
+            return;
+            
+        case "rule"; 
+            for *tr: transactions {
+                if tr.category_id == rules[should_remove_rule].category_id {
+                    tr.category_id = 0;
+                }
+            }
+            ok := delete_rule_from_db(rules[should_remove_rule].id);
+            if !ok then return;
+            array_ordered_remove_by_index(*rules, should_remove_rule);
+            should_remove_rule = -1;
             return;
             
         case "all_transactions";

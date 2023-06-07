@@ -87,6 +87,11 @@ delete_transaction_from_db :: (id: int) -> bool{
     return execute_simple_db_query(tprint(sql_str, id));
 }
 
+delete_rule_from_db :: (id: int) -> bool{
+    sql_str :: "DELETE FROM Rules WHERE id = %;";
+    return execute_simple_db_query(tprint(sql_str, id));
+}
+
 delete_all_transaction_from_db :: () -> bool{
     sql_str :: "DELETE FROM Transactions;";
     return execute_simple_db_query(sql_str);
