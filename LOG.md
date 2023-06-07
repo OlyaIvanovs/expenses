@@ -97,15 +97,15 @@
 + Show rules(add new table to db)
 + Edit rule
 + Remove rule
-- Add rule
-- Common function for drawing the category dropdown
 
 # 08/06/2023
-- Add scrollbar for rules
++ Add rule
 - Add transaction
 - Edit category
 - Add category
+- Add scrollbar for rules
 - Add scrollbar for categories
+- Common function for drawing the category dropdown
 
 # 09/06/2023
 - Add color picker
@@ -113,7 +113,6 @@
 
 # 12/06/2023
 - Transactions filter
-
 
 # Next:
 Task: Mouse scroll
