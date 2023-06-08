@@ -100,7 +100,7 @@
 
 # 08/06/2023
 + Add rule
-- Add transaction
++ Add transaction
 - Edit category
 - Add category
 - Add scrollbar for rules

@@ -143,9 +143,22 @@ should_show_category_dropdown := false;
 should_remove_transaction := -1;
 should_remove_all_transactions := false;
 should_edit_transaction := -1;
+should_add_transaction := false;
 should_edit_rule := -1;
 should_add_rule := false;
 should_remove_rule := -1;
+
+set_null_state :: () {
+    should_remove_category = -1;
+    should_remove_transaction = -1;
+    should_remove_all_transactions = false;
+    should_edit_transaction = -1;
+    should_add_transaction = false;
+    should_show_category_dropdown = false;
+    should_edit_rule = -1;
+    should_add_rule = false;
+    should_remove_rule = -1;
+}
 
 draw_settings :: (r: Rect) {    
     categories_rect, rules_rect, upload_rect, pad : Rect;
@@ -172,7 +185,7 @@ draw_settings :: (r: Rect) {
         draw_remove_dialog("transaction");
     } else if should_remove_all_transactions {
         draw_remove_dialog("all_transactions");
-    } else if should_edit_transaction > -1 {
+    } else if should_edit_transaction > -1 || should_add_transaction {
         draw_edit_transaction_dialog();
     } else if should_edit_rule > -1 || should_add_rule {
         draw_edit_rule_dialog();
@@ -276,17 +289,6 @@ draw_icons :: (r: Rect, index: int, mode: string, parent_ui_id: Ui_Id) {
     } else {
         Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
     }
-}
-
-set_null_state :: () {
-    should_remove_category = -1;
-    should_remove_transaction = -1;
-    should_remove_all_transactions = false;
-    should_edit_transaction = -1;
-    should_show_category_dropdown = false;
-    should_edit_rule = -1;
-    should_add_rule = false;
-    should_remove_rule = -1;
 }
 
 draw_dialog_base :: (height: float, width: float) -> dialog: Rect {
@@ -405,29 +407,16 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     yes = shrink_y(shrink_x(yes, 0.2 * yes.w), 0.25 * yes.h);    
     no = shrink_y(shrink_x(no, 0.2 * no.w), 0.25 * no.h);   
     
-    draw_button(yes, "Update");
+    if should_edit_transaction > -1 {
+        draw_button(yes, "Update");
+    } else if should_add_transaction {
+        draw_button(yes, "Add");
+    }
     draw_button(no, "Cancel");
     
     ui_id = get_ui_id_from_loc(loc); 
     yes_chosen := maybe_set_hot_or_active(ui_id, yes, .PRESSABLE);
-    no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);
-    
-    if yes_chosen {
-        ok := add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
-        transactions[should_edit_transaction] = tr;
-        if !ok then return;
-        
-        should_edit_transaction = -1;
-        new_category = -1;        
-        text_input.text.count = 0;
-        array_ordered_remove_by_index(*transactions, transactions.count-1);
-    }
-    
-    if no_chosen {
-        should_edit_transaction = -1;
-        array_ordered_remove_by_index(*transactions, transactions.count-1);
-    } 
-    
+    no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);    
     
     // Draw dropdown
     if should_show_category_dropdown {
@@ -517,6 +506,24 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
             Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
         }
     }
+    
+    if yes_chosen {
+        ok := add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
+        if !ok then return;
+           
+        text_input.text.count = 0;
+        
+        if should_edit_transaction > -1 {        
+            transactions[should_edit_transaction] = tr;
+            array_ordered_remove_by_index(*transactions, transactions.count-1);
+        }
+        set_null_state();
+    }
+    
+    if no_chosen {
+        array_ordered_remove_by_index(*transactions, transactions.count-1);
+        set_null_state();
+    } 
     
     return;
 }
@@ -991,7 +998,16 @@ draw_buttons_area :: (r: Rect) {
     draw_button(button_area, "Add transaction");
     ui_id = get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(ui_id, button_area, .PRESSABLE);
-    
+    if became_active {
+        should_add_transaction = true;
+        cal := to_calendar(current_time_consensus());
+        d := sprint("%/%/%", 
+            cal.year, 
+            formatInt(cal.month_starting_at_0+1, minimum_digits=2), 
+            formatInt(cal.day_of_month_starting_at_0+1, minimum_digits=2));
+        tr: = Transaction.{details = "", date=d, category_id = 0, amount = 0.00, note = "", category_id = 0}; 
+        array_add(*transactions, tr);
+    }
     return;
 }
 
