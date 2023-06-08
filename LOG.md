@@ -101,11 +101,10 @@
 # 08/06/2023
 + Add rule
 + Add transaction
-- Edit category
-- Add category
++ Edit category
++ Add category
 - Add scrollbar for rules
 - Add scrollbar for categories
-- Common function for drawing the category dropdown
 
 # 09/06/2023
 - Add color picker
@@ -113,11 +112,13 @@
 
 # 12/06/2023
 - Transactions filter
+- Date picker
+- Common function for drawing the category dropdown
 
 # Next:
 Task: Mouse scroll
 Task: One size buttons(?)
-Task: Validation edit form
+Task: Validation forms(edit&create)
 Task: Update style
 
 Graphs:

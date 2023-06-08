@@ -97,14 +97,14 @@ delete_all_transaction_from_db :: () -> bool{
     return execute_simple_db_query(sql_str);
 }
 
-add_category_to_db :: (id: int, name: string) -> bool {
-    sql_str :: "INSERT OR REPLACE INTO Categories(id, name) VALUES(%, '%');";
-    return execute_simple_db_query(tprint(sql_str, id, name));
+add_category_to_db :: (id: int, name: string, color: string) -> bool {
+    sql_str :: "INSERT OR REPLACE INTO Categories(id, name, color) VALUES(%, '%', '%');";
+    return execute_simple_db_query(tprint(sql_str, id, name, color));
 }
 
-add_category_to_db :: (name: string) -> bool {
-    sql_str :: "INSERT OR REPLACE INTO Categories(name) VALUES('%');";
-    return execute_simple_db_query(tprint(sql_str, name));
+add_category_to_db :: (name: string, color: string) -> bool {
+    sql_str :: "INSERT OR REPLACE INTO Categories(name, color) VALUES('%', '%');";
+    return execute_simple_db_query(tprint(sql_str, name, color));
 }
 
 add_rule_to_db :: (id: int, name: string, category_id: int) -> bool {

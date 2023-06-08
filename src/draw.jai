@@ -138,7 +138,8 @@ dropdown_scroll_delta :float = 0;
 transactions_scroll_grip :float = 0;
 
 should_remove_category := -1;
-new_category  := -1;
+should_edit_category := -1;
+should_add_category := false;
 should_show_category_dropdown := false;
 should_remove_transaction := -1;
 should_remove_all_transactions := false;
@@ -149,6 +150,8 @@ should_add_rule := false;
 should_remove_rule := -1;
 
 set_null_state :: () {
+    should_add_category = false;
+    should_edit_category = -1;
     should_remove_category = -1;
     should_remove_transaction = -1;
     should_remove_all_transactions = false;
@@ -187,7 +190,9 @@ draw_settings :: (r: Rect) {
         draw_remove_dialog("all_transactions");
     } else if should_edit_transaction > -1 || should_add_transaction {
         draw_edit_transaction_dialog();
-    } else if should_edit_rule > -1 || should_add_rule {
+    } else if should_edit_category > -1 || should_add_category {
+        draw_edit_category_dialog();
+    }  else if should_edit_rule > -1 || should_add_rule {
         draw_edit_rule_dialog();
     } else if should_remove_rule > -1 {
         draw_remove_dialog("rule");
@@ -199,78 +204,66 @@ draw_categories :: (r: Rect) {
 
     rect : Rect;
     parent_ui_id := get_ui_id_from_loc();
+    
+     // Trash icon
+    trash_icon_unicode := 0xf1f8;
+    trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
     for *category, cat_index: categories {
-        show_icons : bool;
+        if cat_index == categories.count && should_edit_category > -1 then break;  
         rect, categories_rect = cut_top(categories_rect, 36 * dpi_scale);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
+        
+        bottomline := rect;
+        bottomline.h = 1 * dpi_scale;
+        draw_rect(bottomline, Colors.SELECTION_ACTIVE);
         
         ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) cat_index * cast(s64) parent_ui_id));
         became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
         
+        color_rect, category_rect, icons_rect: Rect;
+        icons_rect, rect = cut_right(rect, 20 * dpi_scale);
+        color_rect, rect = cut_left(rect, 30 * dpi_scale);
+        
         // Show icons on hover
         if is_hovering_over(ui_id) {
-            show_icons = true;
+            trash_icon_width := cast(float) Simp.prepare_text(font_icons, to_string(*trash_icon_char));
+            pen := make_vector2(icons_rect.x, icons_rect.y + (icons_rect.h - font.character_height) / 2 + 2 * dpi_scale);
+    
+            if mouse_pointer_is_within(icons_rect) {
+                Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DIM);
+                if became_active then should_remove_category = cat_index;
+            } else {
+                Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+            }
          }
+         
+         if became_active && should_remove_category < 0 {
+            should_edit_category = cat_index;
+            array_add(*categories, categories[cat_index]);
+        }
         
-        if cat_index != new_category {
-            bottomline := rect;
-            bottomline.h = 1 * dpi_scale;
-            draw_rect(bottomline, Colors.SELECTION_ACTIVE);
-             
-            if became_active  then new_category = cat_index;
-            
-            trash_icon, color_icon : Rect;
-            trash_icon, rect = cut_right(rect, 20 * dpi_scale);
-            color_icon, rect = cut_left(rect, 30 * dpi_scale);
-            width := cast(float) Simp.prepare_text(font, category.name);
-            pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
-            Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
-            
-            color_icon = shrink(color_icon, 10 * dpi_scale);
-            c,ok := hex_to_color(category.color);
-            if !ok then c = Colors.RED;
-            draw_rect(color_icon, c);
-
-            if show_icons {
-                draw_icons(trash_icon, cat_index, "categories", ui_id);
-             }
-            
-        } else {
-            ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) cat_index * cast(s64) parent_ui_id));
-            draw_text_input(*text_input, rect, ui_id);
-            if category.name.count > 0 { // edit category
-                array_resize(*text_input.text, category.name.count);
-                memcpy(text_input.text.data, category.name.data, category.name.count);
-                category.name.count = 0;
-            } 
-        } 
+        // Details
+        draw_text_in_rect(rect, category.name);
+        
+        // Color icon
+        color_rect = shrink(color_rect, 10 * dpi_scale);
+        c,ok := hex_to_color(category.color);
+        if !ok then c = Colors.RED;
+        draw_rect(color_rect, c);
     }
     
-    // Add a new category by clicking on the button
-    // Show either input to type a new categorie's name or button "Add a new category"
-    if new_category < 0 {
-        rect, categories_rect = cut_top(categories_rect, 36 * dpi_scale);
-        draw_button(rect, "Add a new category");
-        
-        // Click on button creates a new category)
-        category_new : Category;
-        category_new.id = categories[categories.count-1].id + 1;
-        
-        ui_id := get_ui_id_from_loc();
-        became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
-        if became_active {
-            new_category = xx categories.count;
-            array_add(*categories, category_new);
-        }
-    } else if enter_pressed {
-        categories[new_category].name = copy_string(cast(string) text_input.text);
-        
-        ok := add_category_to_db(categories[new_category].id, categories[new_category].name);
-        if !ok then return;
-        
-        new_category = -1;        
-        text_input.text.count = 0;
+    // Add a new category
+    rect, categories_rect = cut_top(categories_rect, 36 * dpi_scale);
+    draw_button(rect, "Add a new category");
+    ui_id := get_ui_id_from_loc();
+    became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
+    if became_active {
+        should_add_category = true;
+        c: = Category.{name = "", color = "111111"}; 
+        array_add(*categories, c);
     }
+     
+    return;
 }
 
 draw_icons :: (r: Rect, index: int, mode: string, parent_ui_id: Ui_Id) {
@@ -525,6 +518,103 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     
     if no_chosen {
         array_ordered_remove_by_index(*transactions, transactions.count-1);
+        set_null_state();
+    } 
+    
+    return;
+}
+
+// Edit and add category
+draw_edit_category_dialog :: (loc := #caller_location) {
+    category := *categories[categories.count-1];
+    dialog := draw_dialog_base(270, 600);
+    
+    pad, name_area, color_area, color_code_area: Rect;
+    pad, dialog = cut_top(dialog, 16 * dpi_scale);
+    name_area, dialog = cut_top(dialog, 36 * dpi_scale);
+    color_area, dialog = cut_top(dialog, 100 * dpi_scale);
+    color_code_area, dialog = cut_top(dialog, 36 * dpi_scale);
+    color_code_area.w = 100 * dpi_scale;
+    color_area.w = name_area.w / 4;
+    color_area = shrink_y(color_area, 10 * dpi_scale);
+    
+    // Categorie's name
+    ui_id := get_ui_id_from_loc();
+    became_active := maybe_set_hot_or_active(ui_id, name_area, .PRESSABLE, true);
+    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(name_area, Colors.SEARCH_RESULT_INACTIVE );
+    if ui.active_input == ui_id {
+        if became_active {
+            array_resize(*text_input.text, category.name.count);
+            memcpy(text_input.text.data, category.name.data, category.name.count);
+        }
+        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
+        input_rect := cut_top(name_area, input_height);
+        draw_text_input(*text_input, input_rect, ui_id);
+        if enter_pressed then ui.active_input = .none;
+        category.name = copy_string(cast(string) text_input.text);
+    } else {
+        if category.name == "" then draw_text_in_rect(name_area, "Add category name", Colors.UI_DIM); else draw_text_in_rect(name_area, category.name);  
+    } 
+    
+    // Categorie's color
+    draw_rect(color_area, hex_to_color(category.color));
+    
+    ui_id = get_ui_id_from_loc();
+    became_active = maybe_set_hot_or_active(ui_id, color_code_area, .PRESSABLE, true);
+    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(color_code_area, Colors.SEARCH_RESULT_INACTIVE );
+    color := tprint("%", category.color); 
+    if ui.active_input == ui_id {
+        if became_active {
+            array_resize(*text_input.text, color.count);
+            memcpy(text_input.text.data, color.data, color.count);
+        }
+        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
+        input_rect := cut_top(color_code_area, input_height);
+        draw_text_input(*text_input, input_rect, ui_id);
+        if enter_pressed then ui.active_input = .none;        
+        category.color = copy_string(cast(string) text_input.text);        
+    } else {
+        draw_text_in_rect(color_code_area, color);  
+    } 
+     
+    
+    // Buttons
+    buttons : Rect;
+    buttons, dialog = cut_bottom(dialog, 70 * dpi_scale);
+    no, yes := cut_right(buttons, xx (buttons.w / 2));
+    
+    yes = shrink_y(shrink_x(yes, 0.2 * yes.w), 0.25 * yes.h);    
+    no = shrink_y(shrink_x(no, 0.2 * no.w), 0.25 * no.h);   
+    
+    if should_edit_category > -1 {
+        draw_button(yes, "Update");
+    } else if should_add_category {
+        draw_button(yes, "Add");
+    }
+    draw_button(no, "Cancel");
+    
+    ui_id = get_ui_id_from_loc(loc); 
+    yes_chosen := maybe_set_hot_or_active(ui_id, yes, .PRESSABLE);
+    no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);
+    
+    if yes_chosen {    
+        text_input.text.count = 0;
+        
+        if should_add_category {
+            ok := add_category_to_db(category.name, category.color);
+            if !ok then return;
+        } else if should_edit_category > -1 {
+            ok := add_category_to_db(category.id, category.name, category.color);
+            if !ok then return;   
+            categories[should_edit_category] = category;
+            array_ordered_remove_by_index(*categories, categories.count-1);
+        }
+        
+        set_null_state();
+    }
+    
+    if no_chosen {
+        array_ordered_remove_by_index(*categories, categories.count-1);
         set_null_state();
     } 
     
@@ -1000,7 +1090,7 @@ draw_buttons_area :: (r: Rect) {
     
     pad, r = cut_top(r, 36 * dpi_scale);
     button_area, r = cut_top(r, 36 * dpi_scale);
-    draw_button(button_area, "Add transaction");
+    draw_button(button_area, "Add a new transaction");
     ui_id = get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(ui_id, button_area, .PRESSABLE);
     if became_active {
