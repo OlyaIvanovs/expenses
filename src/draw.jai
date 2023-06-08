@@ -507,16 +507,19 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
         }
     }
     
-    if yes_chosen {
-        ok := add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
-        if !ok then return;
-           
+    if yes_chosen {   
         text_input.text.count = 0;
         
-        if should_edit_transaction > -1 {        
+        if should_add_transaction {
+            ok := add_transaction_to_db(tr.date, tr.amount, tr.details, tr.note, tr.category_id);
+            if !ok then return;  
+        } else if should_edit_transaction > -1 { 
+            ok := add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
+            if !ok then return;       
             transactions[should_edit_transaction] = tr;
             array_ordered_remove_by_index(*transactions, transactions.count-1);
         }
+        
         set_null_state();
     }
     
@@ -756,10 +759,7 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
         }
     }
     
-    if yes_chosen {
-        ok := add_rule_to_db(rule.id, rule.name,  rule.category_id);
-        if !ok then return;
-        
+    if yes_chosen {    
         for *tr: transactions {
             if contains_nocase(tr.details, rule.name) { 
                 tr.category_id = rule.category_id; 
@@ -768,10 +768,15 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
         }
         text_input.text.count = 0;
         
-        if should_edit_rule > -1 {        
+        if should_add_rule {
+            ok := add_rule_to_db(rule.name,  rule.category_id);
+            if !ok then return;
+        } else if should_edit_rule > -1 {
+            ok := add_rule_to_db(rule.id, rule.name,  rule.category_id);
+            if !ok then return;   
             rules[should_edit_rule] = rule;;
             array_ordered_remove_by_index(*rules, rules.count-1);
-        } 
+        }
         
         set_null_state();
     }

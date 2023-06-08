@@ -102,14 +102,29 @@ add_category_to_db :: (id: int, name: string) -> bool {
     return execute_simple_db_query(tprint(sql_str, id, name));
 }
 
+add_category_to_db :: (name: string) -> bool {
+    sql_str :: "INSERT OR REPLACE INTO Categories(name) VALUES('%');";
+    return execute_simple_db_query(tprint(sql_str, name));
+}
+
 add_rule_to_db :: (id: int, name: string, category_id: int) -> bool {
     sql_str :: "INSERT OR REPLACE INTO Rules(id, name, category_id) VALUES(%, '%', %);";
     return execute_simple_db_query(tprint(sql_str, id, name, category_id));
 }
 
+add_rule_to_db :: ( name: string, category_id: int) -> bool {
+    sql_str :: "INSERT OR REPLACE INTO Rules(name, category_id) VALUES('%', %);";
+    return execute_simple_db_query(tprint(sql_str, name, category_id));
+}
+
 add_transaction_to_db :: (id: int, date: string, amount: float64, details: string, note: string, category_id: int) -> bool {
     sql_str :: "INSERT OR REPLACE INTO Transactions(id, transaction_date, amount, details, note, category_id) VALUES(%, '%', %, '%', '%', %);";
     return execute_simple_db_query(tprint(sql_str, id, date, amount, details, note, category_id));
+}
+
+add_transaction_to_db :: (date: string, amount: float64, details: string, note: string, category_id: int) -> bool {
+    sql_str :: "INSERT OR REPLACE INTO Transactions(transaction_date, amount, details, note, category_id) VALUES('%', %, '%', '%', %);";
+    return execute_simple_db_query(tprint(sql_str, date, amount, details, note, category_id));
 }
 
 execute_simple_db_query :: (select: string) -> bool{
