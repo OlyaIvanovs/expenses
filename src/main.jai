@@ -91,7 +91,7 @@ main :: () {
 
         draw_one_frame();
         pointer_end_frame();
-        sleep_milliseconds(10);
+        sleep_milliseconds(1);
         reset_temporary_storage();
     }
 }

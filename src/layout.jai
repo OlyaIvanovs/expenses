@@ -70,7 +70,7 @@ cut_left :: (rect: Rect, amount: float) -> (left: Rect,  remainder: Rect) {
     left := rect;
     left.w = amount;
 
-    return left, remainder;
+    return snap_to_grid(left), snap_to_grid(remainder);
 }
 
 cut_right :: (rect: Rect, amount: float) -> (right: Rect, remainder: Rect) {
@@ -82,7 +82,7 @@ cut_right :: (rect: Rect, amount: float) -> (right: Rect, remainder: Rect) {
     right.x = remainder.x + remainder.w;
     right.w = amount;
 
-    return right, remainder;
+    return snap_to_grid(right), snap_to_grid(remainder);
 }
 
 cut_bottom :: (rect: Rect, amount: float) -> (bottom: Rect, remainder: Rect) {
@@ -94,7 +94,7 @@ cut_bottom :: (rect: Rect, amount: float) -> (bottom: Rect, remainder: Rect) {
     bottom := rect;
     bottom.h = amount;
 
-    return bottom, remainder;
+    return snap_to_grid(bottom), snap_to_grid(remainder);
 }
 
 cut_top :: (rect: Rect, amount: float) -> (top: Rect, remainder: Rect) {
@@ -106,7 +106,7 @@ cut_top :: (rect: Rect, amount: float) -> (top: Rect, remainder: Rect) {
     top.h = amount;
     top.y = remainder.y + remainder.h;
 
-    return top, remainder;
+    return snap_to_grid(top), snap_to_grid(remainder);
 }
 
 bottom_left :: inline (using rect: Rect) -> Vector2 {

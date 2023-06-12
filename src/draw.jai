@@ -135,7 +135,9 @@ draw_dashboard :: (main_area: Rect) {
 // Scroll global data
 transactions_scroll_delta :float = 0;
 dropdown_scroll_delta :float = 0;
+categories_scroll_delta :float = 0;
 transactions_scroll_grip :float = 0;
+scrollbar_grab_point :float = 0;
 
 should_remove_category := -1;
 should_edit_category := -1;
@@ -201,20 +203,73 @@ draw_settings :: (r: Rect) {
 
 draw_categories :: (r: Rect) {
     categories_rect := draw_title(r, "Categories");
+    
+    line_height := 36 * dpi_scale;
+    
+    add_category_button, wrapper := cut_bottom(categories_rect, line_height);
+    
+    content_height := categories.count * line_height;
+    if wrapper.h > content_height {
+        wrapper.y += wrapper.h - content_height;
+        add_category_button.y += wrapper.h - content_height;
+        wrapper.h = content_height;
+    }
+    
+    categories_rect = shrink_x(categories_rect, 15 * dpi_scale);
+        
+    push_scissor(wrapper);
+    
+    // Scroll bar
+    scroll_area    := cut_right(wrapper, 10 * dpi_scale);
+    scrollbar_line := cut_right(scroll_area, 2 * dpi_scale);
+    
+    scrollbar := scroll_area;
+    scrollbar.h = floor(scroll_area.h * scroll_area.h / content_height); 
+    percent_scrolled := categories_scroll_delta / content_height;
+    scrollbar.y = scroll_area.y + scroll_area.h - scroll_area.h * percent_scrolled - scrollbar.h;
+    
+    if content_height > wrapper.h {                 
+        scrollbar_id := get_ui_id_from_loc();
+        maybe_set_hot_or_active(scrollbar_id, scroll_area, .PRESSABLE, false);
+        
+        color : = Colors.BACKGROUND_BRIGHT;
+        if is_hovering_over(scrollbar_id) then color = Colors.BACKGROUND_HIGHLIGHT;
+        draw_rect(scrollbar, color);
+        
+        // Maybe drag the slider
+        if ui.active == scrollbar_id {
+            if mouse.left.just_pressed {
+                if mouse_pointer_is_within(scrollbar) {
+                    scrollbar_grab_point = mouse.pointer.y - scrollbar.y;
+                } else {
+                    scrollbar_grab_point = scrollbar.h /2;
+                }
+            }            
+            new_scrollbar_top := mouse.pointer.y - scrollbar_grab_point + scrollbar.h;
+            categories_scroll_delta = content_height * (scroll_area.y + scroll_area.h - new_scrollbar_top) / scroll_area.h;
+            
+        }
+        
+        draw_rect(scrollbar_line, Colors.BACKGROUND_BRIGHT);
+    }
+    
+    categories_scroll_delta = clamp(categories_scroll_delta, 0, content_height - wrapper.h);
+    categories_rect.y += categories_scroll_delta;
 
-    rect : Rect;
+    rect, c : Rect;
     parent_ui_id := get_ui_id_from_loc();
     
      // Trash icon
     trash_icon_unicode := 0xf1f8;
     trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
+    height := 0;
     for *category, cat_index: categories {
         if cat_index == categories.count && should_edit_category > -1 then break;  
-        rect, categories_rect = cut_top(categories_rect, 36 * dpi_scale);
-        draw_rect(rect, Colors.BACKGROUND_LIGHT);
+        rect, categories_rect = cut_top(categories_rect, line_height);
+        height += xx (line_height);
         
         bottomline := rect;
-        bottomline.h = 1 * dpi_scale;
+        bottomline.h = 1;
         draw_rect(bottomline, Colors.SELECTION_ACTIVE);
         
         ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) cat_index * cast(s64) parent_ui_id));
@@ -252,11 +307,11 @@ draw_categories :: (r: Rect) {
         draw_rect(color_rect, c);
     }
     
-    // Add a new category
-    rect, categories_rect = cut_top(categories_rect, 36 * dpi_scale);
-    draw_button(rect, "Add a new category");
-    ui_id := get_ui_id_from_loc();
-    became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
+    pop_scissor();
+    
+    draw_button(add_category_button, "Add a new category");
+    button_id := get_ui_id_from_loc();
+    became_active := maybe_set_hot_or_active(button_id, add_category_button, .PRESSABLE);
     if became_active {
         should_add_category = true;
         c: = Category.{name = "", color = "111111"}; 
@@ -1255,7 +1310,7 @@ maybe_set_hot_or_active :: (ui_id: Ui_Id, rect: Rect, pointer_image: Pointer_Ima
     if !mouse_pointer_is_within(rect) return false;
 
     ui.hot = ui_id;
-    if ui.hot_last_frame == ui_id || ui.active == ui_id then set_pointer_image(pointer_image);
+    if ui.hot_last_frame == ui_id && ui.active == .none || ui.active == ui_id then set_pointer_image(pointer_image);
     if ui.hot_last_frame == ui_id && ui.active == .none && mouse.left.just_pressed {
         ui.active_input = .none; 
         ui.active = ui_id;
@@ -1269,7 +1324,7 @@ maybe_set_hot_or_active :: (ui_id: Ui_Id, rect: Rect, pointer_image: Pointer_Ima
     if !mouse_pointer_is_within(rect) return false;
 
     ui.hot = ui_id;
-    if ui.hot_last_frame == ui_id || ui.active == ui_id then set_pointer_image(pointer_image);
+    if ui.hot_last_frame == ui_id && ui.active == .none || ui.active == ui_id then set_pointer_image(pointer_image);
     if ui.hot_last_frame == ui_id && ui.active == .none && mouse.left.just_pressed {
         ui.active = ui_id;
         if is_input then ui.active_input = ui_id; 
@@ -1280,7 +1335,7 @@ maybe_set_hot_or_active :: (ui_id: Ui_Id, rect: Rect, pointer_image: Pointer_Ima
 }
 
 is_hovering_over :: (ui_id: Ui_Id) -> bool {
-    return ui.hot_last_frame == ui_id && ui.active == .none || ui.active == ui_id;
+    return (ui.hot_last_frame == ui_id && ui.active == .none) || ui.active == ui_id;
 }
 
 get_ui_id_from_loc :: inline (loc := #caller_location, parent_id: Ui_Id = .none) -> Ui_Id {
@@ -1304,6 +1359,8 @@ push_scissor :: (rect: Rect) {
 }
 
 pop_scissor :: () {
+    Simp.immediate_flush();  // if we have any remaining vertices, flush them before removing the scissor
+    
     assert(scissor_stack.count > 0);
     pop(*scissor_stack);
     if scissor_stack {
