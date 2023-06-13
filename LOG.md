@@ -103,23 +103,33 @@
 + Add transaction
 + Edit category
 + Add category
-- Add scrollbar for rules
-- Add scrollbar for categories
 
 # 09/06/2023
-- Add color picker
-- Add transactions search
++ Add scrollbar for categories
 
 # 12/06/2023
+
+# 13/06/2023
++ Add scrollbar for rules
+- Change transaction's scrollbar
+- Add color picker
+
+
+# 14/06/2023
+
+
+# Next:
+- Add transactions search
 - Transactions filter
 - Date picker
 - Common function for drawing the category dropdown
 
-# Next:
 Task: Mouse scroll
 Task: One size buttons(?)
 Task: Validation forms(edit&create)
 Task: Update style
+Bottomline common function (?)
+36 * dpi_scale 
 
 Graphs:
 Pie chart

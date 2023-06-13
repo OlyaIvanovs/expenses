@@ -136,6 +136,7 @@ draw_dashboard :: (main_area: Rect) {
 transactions_scroll_delta :float = 0;
 dropdown_scroll_delta :float = 0;
 categories_scroll_delta :float = 0;
+rules_scroll_delta :float = 0;
 transactions_scroll_grip :float = 0;
 scrollbar_grab_point :float = 0;
 
@@ -201,14 +202,49 @@ draw_settings :: (r: Rect) {
     }
 }
 
+draw_scrollbar :: (wrapper: Rect, content_height: float, ui_id: Ui_Id, scroll_delta: *float) {
+    scroll_area    := cut_right(wrapper, 10 * dpi_scale);
+    scrollbar_line := cut_right(scroll_area, 2 * dpi_scale);
+    
+    scrollbar := scroll_area;
+    scrollbar.h = floor(scroll_area.h * scroll_area.h / content_height); 
+    percent_scrolled := <<scroll_delta / content_height;
+    scrollbar.y = scroll_area.y + scroll_area.h - scroll_area.h * percent_scrolled - scrollbar.h;
+    
+    if content_height > wrapper.h {                 
+        maybe_set_hot_or_active(ui_id, scroll_area, .PRESSABLE, false);
+        
+        color : = Colors.BACKGROUND_BRIGHT;
+        if is_hovering_over(ui_id) then color = Colors.BACKGROUND_HIGHLIGHT;
+        draw_rect(scrollbar, color);
+        
+        // Maybe drag the slider
+        if ui.active == ui_id {
+            if mouse.left.just_pressed {
+                if mouse_pointer_is_within(scrollbar) {
+                    scrollbar_grab_point = mouse.pointer.y - scrollbar.y;
+                } else {
+                    scrollbar_grab_point = scrollbar.h /2;
+                }
+            }            
+            new_scrollbar_top := mouse.pointer.y - scrollbar_grab_point + scrollbar.h;
+            <<scroll_delta = content_height * (scroll_area.y + scroll_area.h - new_scrollbar_top) / scroll_area.h;         
+        }
+        draw_rect(scrollbar_line, Colors.BACKGROUND_BRIGHT);
+    }
+    
+    <<scroll_delta = clamp(<<scroll_delta, 0, content_height - wrapper.h);
+}
+
 draw_categories :: (r: Rect) {
-    categories_rect := draw_title(r, "Categories");
+    ui_id := get_ui_id_from_loc();
     
     line_height := 36 * dpi_scale;
+    content_height := categories.count * line_height;
     
+    categories_rect := draw_title(r, "Categories");
     add_category_button, wrapper := cut_bottom(categories_rect, line_height);
     
-    content_height := categories.count * line_height;
     if wrapper.h > content_height {
         wrapper.y += wrapper.h - content_height;
         add_category_button.y += wrapper.h - content_height;
@@ -218,69 +254,30 @@ draw_categories :: (r: Rect) {
     categories_rect = shrink_x(categories_rect, 15 * dpi_scale);
         
     push_scissor(wrapper);
-    
-    // Scroll bar
-    scroll_area    := cut_right(wrapper, 10 * dpi_scale);
-    scrollbar_line := cut_right(scroll_area, 2 * dpi_scale);
-    
-    scrollbar := scroll_area;
-    scrollbar.h = floor(scroll_area.h * scroll_area.h / content_height); 
-    percent_scrolled := categories_scroll_delta / content_height;
-    scrollbar.y = scroll_area.y + scroll_area.h - scroll_area.h * percent_scrolled - scrollbar.h;
-    
-    if content_height > wrapper.h {                 
-        scrollbar_id := get_ui_id_from_loc();
-        maybe_set_hot_or_active(scrollbar_id, scroll_area, .PRESSABLE, false);
-        
-        color : = Colors.BACKGROUND_BRIGHT;
-        if is_hovering_over(scrollbar_id) then color = Colors.BACKGROUND_HIGHLIGHT;
-        draw_rect(scrollbar, color);
-        
-        // Maybe drag the slider
-        if ui.active == scrollbar_id {
-            if mouse.left.just_pressed {
-                if mouse_pointer_is_within(scrollbar) {
-                    scrollbar_grab_point = mouse.pointer.y - scrollbar.y;
-                } else {
-                    scrollbar_grab_point = scrollbar.h /2;
-                }
-            }            
-            new_scrollbar_top := mouse.pointer.y - scrollbar_grab_point + scrollbar.h;
-            categories_scroll_delta = content_height * (scroll_area.y + scroll_area.h - new_scrollbar_top) / scroll_area.h;
-            
-        }
-        
-        draw_rect(scrollbar_line, Colors.BACKGROUND_BRIGHT);
-    }
-    
-    categories_scroll_delta = clamp(categories_scroll_delta, 0, content_height - wrapper.h);
+    scrollbar_id := get_ui_id_from_loc(parent_id = ui_id);
+    draw_scrollbar(wrapper, content_height, scrollbar_id, *categories_scroll_delta);
     categories_rect.y += categories_scroll_delta;
-
-    rect, c : Rect;
-    parent_ui_id := get_ui_id_from_loc();
-    
+        
      // Trash icon
     trash_icon_unicode := 0xf1f8;
     trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
-    height := 0;
+    
+    rect, c : Rect;
     for *category, cat_index: categories {
-        if cat_index == categories.count && should_edit_category > -1 then break;  
+        if cat_index == categories.count - 1 && should_edit_category > -1 then break;  
         rect, categories_rect = cut_top(categories_rect, line_height);
-        height += xx (line_height);
         
-        bottomline := rect;
-        bottomline.h = 1;
-        draw_rect(bottomline, Colors.SELECTION_ACTIVE);
+        draw_line_separator(rect);
         
-        ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) cat_index * cast(s64) parent_ui_id));
-        became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
+        category_line_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) cat_index * cast(s64) ui_id));
+        became_active := maybe_set_hot_or_active(category_line_id, rect, .PRESSABLE);
         
         color_rect, category_rect, icons_rect: Rect;
         icons_rect, rect = cut_right(rect, 20 * dpi_scale);
         color_rect, rect = cut_left(rect, 30 * dpi_scale);
         
         // Show icons on hover
-        if is_hovering_over(ui_id) {
+        if is_hovering_over(category_line_id) {
             trash_icon_width := cast(float) Simp.prepare_text(font_icons, to_string(*trash_icon_char));
             pen := make_vector2(icons_rect.x, icons_rect.y + (icons_rect.h - font.character_height) / 2 + 2 * dpi_scale);
     
@@ -317,8 +314,6 @@ draw_categories :: (r: Rect) {
         c: = Category.{name = "", color = "111111"}; 
         array_add(*categories, c);
     }
-     
-    return;
 }
 
 draw_icons :: (r: Rect, index: int, mode: string, parent_ui_id: Ui_Id) {
@@ -632,7 +627,6 @@ draw_edit_category_dialog :: (loc := #caller_location) {
         draw_text_in_rect(color_code_area, color);  
     } 
      
-    
     // Buttons
     buttons : Rect;
     buttons, dialog = cut_bottom(dialog, 70 * dpi_scale);
@@ -672,8 +666,6 @@ draw_edit_category_dialog :: (loc := #caller_location) {
         array_ordered_remove_by_index(*categories, categories.count-1);
         set_null_state();
     } 
-    
-    return;
 }
 
 draw_remove_dialog :: (mode: string, loc := #caller_location) {    
@@ -934,34 +926,73 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
     return;
 }
 
+draw_line_separator :: (rect: Rect) {
+    bottomline := rect;
+    bottomline.h = 1 * dpi_scale;
+    draw_rect(bottomline, Colors.SELECTION_ACTIVE);
+}
+
+draw_title_bottom_line :: (rect: Rect) {
+    title_bottomline := rect;
+    title_bottomline.h = 3 * dpi_scale;
+    draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
+}
+
+draw_title :: (r: Rect, title: string) -> Rect {
+    title_rect, rect := cut_top(r, 50 * dpi_scale);
+
+    draw_title_bottom_line(title_rect);
+
+    width := cast(float) Simp.prepare_text(font_ui_bold, title);
+    pen := make_vector2(title_rect.x + (title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
+    Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+    
+    return rect;
+}
+
 draw_rules :: (r: Rect) { 
+    ui_id := get_ui_id_from_loc();  
     count := rules.count;
     if should_edit_rule > -1 then count -= 1;
     
-    rect: Rect;
+    line_height := 36 * dpi_scale;
+    content_height := rules.count * line_height;
+    
     rules_rect := draw_title(r, tprint("Rules(%)", count));
-    parent_ui_id := get_ui_id_from_loc();  
+    add_rule_button, wrapper := cut_bottom(rules_rect, line_height);
+    
+     if wrapper.h > content_height {
+        wrapper.y += wrapper.h - content_height;
+        add_rule_button.y += wrapper.h - content_height;
+        wrapper.h = content_height;
+    }
+    
+    rules_rect = shrink_x(rules_rect, 15 * dpi_scale);
+    push_scissor(wrapper);
+    scrollbar_id := get_ui_id_from_loc(parent_id = ui_id);
+    draw_scrollbar(wrapper, content_height, scrollbar_id, *rules_scroll_delta);
+    rules_rect.y += rules_scroll_delta;
     
     // Trash icon
     trash_icon_unicode := 0xf1f8;
     trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
+    
+    rect: Rect;
     for rule, rule_index: rules {
         if rule_index == count && should_edit_rule > -1 then break;  
         rect, rules_rect = cut_top(rules_rect, 36 * dpi_scale);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
         
-        bottomline := rect;
-        bottomline.h = 1 * dpi_scale;
-        draw_rect(bottomline, Colors.SELECTION_ACTIVE);
+        draw_line_separator(rect);
         
-        ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) rule_index * cast(s64) parent_ui_id));
-        became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
+        rule_line_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) rule_index * cast(s64) ui_id));
+        became_active := maybe_set_hot_or_active(rule_line_id, rect, .PRESSABLE);
         
         details_rect, category_rect, icons_rect: Rect;
         icons_rect, rect = cut_right(rect, 20 * dpi_scale);
         
         // Show icons on hover
-        if is_hovering_over(ui_id) {
+        if is_hovering_over(rule_line_id) {
             trash_icon_width := cast(float) Simp.prepare_text(font_icons, to_string(*trash_icon_char));
             pen := make_vector2(icons_rect.x, icons_rect.y + (icons_rect.h - font.character_height) / 2 + 2 * dpi_scale);
     
@@ -989,11 +1020,12 @@ draw_rules :: (r: Rect) {
         draw_text_in_rect(category_rect, get_category_name(rule.category_id));
     }
     
+    pop_scissor();
+    
     // Add a new rule
-    rect, rules_rect = cut_top(rules_rect, 36 * dpi_scale);
-    draw_button(rect, "Add a new rule");
-    ui_id := get_ui_id_from_loc();
-    became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
+    draw_button(add_rule_button, "Add a new rule");
+    button_id := get_ui_id_from_loc();
+    became_active := maybe_set_hot_or_active(button_id, add_rule_button, .PRESSABLE);
     if became_active {
         should_add_rule = true;
         r: = Rule.{name = "", category_id = 0}; 
@@ -1058,9 +1090,7 @@ draw_transactions :: (r: Rect) {
         rect, transactions_rect = cut_top(transactions_rect, 36 * dpi_scale);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
         
-        bottomline := rect;
-        bottomline.h = 1 * dpi_scale;
-        draw_rect(bottomline, Colors.SELECTION_ACTIVE);
+        draw_line_separator(rect);
         
         ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) tr_index * cast(s64) parent_ui_id));
         became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);
@@ -1116,17 +1146,15 @@ draw_transactions :: (r: Rect) {
 draw_buttons_area :: (r: Rect) {
     title_rect, r := cut_top(r, 50 * dpi_scale);
     
-    title_bottomline := title_rect;
-    title_bottomline.h = 3 * dpi_scale;
     draw_rect(title_rect, Colors.BACKGROUND_LIGHT);
-    draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
+    draw_title_bottom_line(title_rect);
     
     pad, button_area : Rect;
     pad, r = cut_top(r, 36 * dpi_scale);
     button_area, r = cut_top(r, 36 * dpi_scale);
     draw_button(button_area, "Upload transactions");
-    ui_id := get_ui_id_from_loc();
-    became_active := maybe_set_hot_or_active(ui_id, button_area, .PRESSABLE);
+    upload_button_id := get_ui_id_from_loc();
+    became_active := maybe_set_hot_or_active(upload_button_id, button_area, .PRESSABLE);
     if became_active {
         file_name, ok := get_upload_file_name();
         if !ok return;
@@ -1139,15 +1167,15 @@ draw_buttons_area :: (r: Rect) {
     pad, r = cut_top(r, 36 * dpi_scale);
     button_area, r = cut_top(r, 36 * dpi_scale);
     draw_button(button_area, "Remove all transactions");
-    ui_id = get_ui_id_from_loc();
-    became_active = maybe_set_hot_or_active(ui_id, button_area, .PRESSABLE);
+    remove_all_tr_id := get_ui_id_from_loc();
+    became_active = maybe_set_hot_or_active(remove_all_tr_id, button_area, .PRESSABLE);
     if became_active then should_remove_all_transactions = true;
     
     pad, r = cut_top(r, 36 * dpi_scale);
     button_area, r = cut_top(r, 36 * dpi_scale);
     draw_button(button_area, "Add a new transaction");
-    ui_id = get_ui_id_from_loc();
-    became_active = maybe_set_hot_or_active(ui_id, button_area, .PRESSABLE);
+    add_tr_id := get_ui_id_from_loc();
+    became_active = maybe_set_hot_or_active(add_tr_id, button_area, .PRESSABLE);
     if became_active {
         should_add_transaction = true;
         cal := to_calendar(current_time_consensus());
@@ -1159,21 +1187,6 @@ draw_buttons_area :: (r: Rect) {
         array_add(*transactions, tr);
     }
     return;
-}
-
-
-draw_title :: (r: Rect, title: string) -> Rect {
-    title_rect, rect := cut_top(r, 50 * dpi_scale);
-
-    title_bottomline := title_rect;
-    title_bottomline.h = 3 * dpi_scale;
-    draw_rect(title_bottomline, Colors.SELECTION_ACTIVE);
-
-    width := cast(float) Simp.prepare_text(font_ui_bold, title);
-    pen := make_vector2(title_rect.x + (title_rect.w - width)/2, title_rect.y + (title_rect.h - font_ui_bold.character_height) / 2 + 2 * dpi_scale);
-    Simp.draw_prepared_text(font_ui_bold, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
-    
-    return rect;
 }
 
 draw_text_input :: (using text_input: *Text_Input, r: Rect, ui_id: Ui_Id) {
