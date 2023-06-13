@@ -233,15 +233,15 @@ draw_scrollbar :: (wrapper: Rect, content_height: float, ui_id: Ui_Id, scroll_de
 
 draw_categories :: (r: Rect) {
     ui_id := get_ui_id_from_loc();
+    maybe_set_hot_or_active(ui_id, r, .NORMAL, false);
     
     count := categories.count;
     if should_edit_category > -1 then count -= 1;
     
-    line_height := 36 * dpi_scale;
-    content_height := count * line_height;
+    content_height := count * LINE_HEIGHT;
     
     categories_rect := draw_title(r, "Categories");
-    add_category_button, wrapper := cut_bottom(categories_rect, line_height);
+    add_category_button, wrapper := cut_bottom(categories_rect, LINE_HEIGHT);
     
     if wrapper.h > content_height {
         wrapper.y += wrapper.h - content_height;
@@ -263,7 +263,7 @@ draw_categories :: (r: Rect) {
     rect, c : Rect;
     for *category, cat_index: categories {
         if cat_index == count && should_edit_category > -1 then break;  
-        rect, categories_rect = cut_top(categories_rect, line_height);
+        rect, categories_rect = cut_top(categories_rect, LINE_HEIGHT);
         
         draw_line_separator(rect);
         
@@ -327,11 +327,10 @@ draw_rules :: (r: Rect) {
     count := rules.count;
     if should_edit_rule > -1 then count -= 1;
     
-    line_height := 36 * dpi_scale;
-    content_height := rules.count * line_height;
+    content_height := rules.count * LINE_HEIGHT;
     
     rules_rect := draw_title(r, tprint("Rules(%)", count));
-    add_rule_button, wrapper := cut_bottom(rules_rect, line_height);
+    add_rule_button, wrapper := cut_bottom(rules_rect, LINE_HEIGHT);
     
      if wrapper.h > content_height {
         wrapper.y += wrapper.h - content_height;
@@ -352,7 +351,7 @@ draw_rules :: (r: Rect) {
     rect: Rect;
     for rule, rule_index: rules {
         if rule_index == count && should_edit_rule > -1 then break;  
-        rect, rules_rect = cut_top(rules_rect, 36 * dpi_scale);
+        rect, rules_rect = cut_top(rules_rect, LINE_HEIGHT);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
         
         draw_line_separator(rect);
@@ -431,29 +430,32 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     tr := *transactions[transactions.count-1];
     dialog := draw_dialog_base(260, 600);
     
+    ui_id := get_ui_id_from_loc();  
+    maybe_set_hot_or_active(ui_id, dialog, .NORMAL, false);
+    
     pad, date_area, details_area, amount_area, category_area, note_area: Rect;
     pad, dialog = cut_top(dialog, 16 * dpi_scale);
-    date_area, dialog = cut_top(dialog, 36 * dpi_scale);
-    details_area, dialog = cut_top(dialog, 36 * dpi_scale);
-    amount_area, dialog = cut_top(dialog, 36 * dpi_scale);
-    category_area, dialog = cut_top(dialog, 36 * dpi_scale);
-    note_area, dialog = cut_top(dialog, 36 * dpi_scale);
+    date_area, dialog = cut_top(dialog, LINE_HEIGHT);
+    details_area, dialog = cut_top(dialog, LINE_HEIGHT);
+    amount_area, dialog = cut_top(dialog, LINE_HEIGHT);
+    category_area, dialog = cut_top(dialog, LINE_HEIGHT);
+    note_area, dialog = cut_top(dialog, LINE_HEIGHT);
 
     // Transaction's date
     draw_text_in_rect(date_area, tr.date);
     
     // Transaction's details
-    ui_id := get_ui_id_from_loc();
-    became_active := maybe_set_hot_or_active(ui_id, details_area, .PRESSABLE, true);
-    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(details_area, Colors.SEARCH_RESULT_INACTIVE );
-    if ui.active_input == ui_id {
+    tr_details_id := get_ui_id_from_loc();
+    became_active := maybe_set_hot_or_active(tr_details_id, details_area, .PRESSABLE, true);
+    if is_hovering_over(tr_details_id) || ui.active_input == tr_details_id then draw_rect(details_area, Colors.SEARCH_RESULT_INACTIVE );
+    if ui.active_input == tr_details_id {
         if became_active {
             array_resize(*text_input.text, tr.details.count);
             memcpy(text_input.text.data, tr.details.data, tr.details.count);
         }
         input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
         input_rect := cut_top(details_area, input_height);
-        draw_text_input(*text_input, input_rect, ui_id);
+        draw_text_input(*text_input, input_rect, tr_details_id);
         if enter_pressed then ui.active_input = .none;
         tr.details = copy_string(cast(string) text_input.text);
     } else {
@@ -461,38 +463,37 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     } 
     
     // Transaction's note
-    ui_id = get_ui_id_from_loc();
-    became_active = maybe_set_hot_or_active(ui_id, note_area, .PRESSABLE, true);
-    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(note_area, Colors.SEARCH_RESULT_INACTIVE );
+    tr_note_id := get_ui_id_from_loc();
+    became_active = maybe_set_hot_or_active(tr_note_id, note_area, .PRESSABLE, true);
+    if is_hovering_over(tr_note_id) || ui.active_input == tr_note_id then draw_rect(note_area, Colors.SEARCH_RESULT_INACTIVE );
 
-    if ui.active_input == ui_id {
+    if ui.active_input == tr_note_id {
         if became_active {
             array_resize(*text_input.text, tr.note.count);
             memcpy(text_input.text.data, tr.note.data, tr.note.count);
         }
         input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
         input_rect := cut_top(note_area, input_height);
-        draw_text_input(*text_input, input_rect, ui_id);
+        draw_text_input(*text_input, input_rect, tr_note_id);
         if enter_pressed then ui.active_input = .none;
         tr.note = copy_string(cast(string) text_input.text);
     } else {
         if tr.note == "" then draw_text_in_rect(note_area, "No note for the transaction", Colors.UI_DIM); else draw_text_in_rect(note_area, tr.note);
     }
     
-    
     // Transaction's amount
     amount := sprint("%", formatFloat(tr.amount, trailing_width=2, zero_removal=.NO));
-    ui_id= get_ui_id_from_loc();
-    became_active = maybe_set_hot_or_active(ui_id, amount_area, .PRESSABLE, true);
-    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(amount_area, Colors.SEARCH_RESULT_INACTIVE );
-    if ui.active_input == ui_id {
+    tr_amount_id := get_ui_id_from_loc();
+    became_active = maybe_set_hot_or_active(tr_amount_id, amount_area, .PRESSABLE, true);
+    if is_hovering_over(tr_amount_id) || ui.active_input == tr_amount_id then draw_rect(amount_area, Colors.SEARCH_RESULT_INACTIVE );
+    if ui.active_input == tr_amount_id {
         if became_active {
             array_resize(*text_input.text, amount.count);
             memcpy(text_input.text.data, amount.data, amount.count);
         }
         input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
         input_rect := cut_top(amount_area, input_height);
-        draw_text_input(*text_input, input_rect, ui_id);
+        draw_text_input(*text_input, input_rect, tr_amount_id);
         if enter_pressed then  ui.active_input = .none; 
         amount_parsed, ok := parse_float64(*cast(string) text_input.text);
         if ok then tr.amount = amount_parsed;
@@ -501,11 +502,11 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     }
     
     // Transaction's category
-    ui_id = get_ui_id_from_loc();
-    became_active = maybe_set_hot_or_active(ui_id, category_area, .PRESSABLE, true);
-    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(category_area, Colors.SEARCH_RESULT_INACTIVE); 
+    tr_category_id := get_ui_id_from_loc();
+    became_active = maybe_set_hot_or_active(tr_category_id, category_area, .PRESSABLE, true);
+    if is_hovering_over(tr_category_id) || ui.active_input == tr_category_id then draw_rect(category_area, Colors.SEARCH_RESULT_INACTIVE); 
 
-    if ui.active_input == ui_id {
+    if ui.active_input == tr_category_id {
         // Draw dropdown
         should_show_category_dropdown = true;
         if enter_pressed then ui.active_input = .none;
@@ -535,67 +536,39 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     
     // Draw dropdown
     if should_show_category_dropdown {
-        dropdown_wrapper_height := 200 * dpi_scale; 
-        dropdown_height := categories.count * 36 * dpi_scale;
-        dropdown_wrapper := make_rect(
-            category_area.x, 
-            category_area.y + category_area.h  -  dropdown_wrapper_height, 
-            category_area.w, 
-            dropdown_wrapper_height);
-        draw_rect(dropdown_wrapper, Colors.SEARCH_RESULT_INACTIVE);
-        ui_id := get_ui_id_from_loc();
-        maybe_set_hot_or_active(ui_id, dropdown_wrapper, .NORMAL);  
+        wrapper := category_area;
+        wrapper.h = 200 * dpi_scale;
+        wrapper.y = category_area.y + category_area.h - wrapper.h;
         
-        push_scissor(dropdown_wrapper);
-        defer pop_scissor();
-                           
-        // Scroll bar
-        scrollbar, scrollbar_line : Rect;
-        scrollbar, dropdown_wrapper = cut_right(dropdown_wrapper, 10 * dpi_scale);
-        scrollbar_line, scrollbar = cut_right(scrollbar, 2 * dpi_scale);
-        scroll_h := cast(float) scrollbar.h * scrollbar.h / dropdown_height; 
-        if dropdown_height > dropdown_wrapper_height { 
-            scroll_y := cast(float) scrollbar.y + (scrollbar.h - scroll_h) - dropdown_scroll_delta;
-            if scroll_y + scroll_h > scrollbar.y + scrollbar.h then scroll_y = scrollbar.y + scrollbar.h - scroll_h;
-            if scroll_y < scrollbar.y then scroll_y = scrollbar.y;
-            scroll := make_rect(cast(float) scrollbar.x, scroll_y, cast(float) scrollbar.w, scroll_h);
-            
-            ui_id := get_ui_id_from_loc();
-            became_active := maybe_set_hot_or_active(ui_id, scroll, .PRESSABLE, false);
-            if ui.active == ui_id {
-                dropdown_scroll_delta = (scrollbar.y + scrollbar.h) - mouse.pointer.y;
-                if dropdown_scroll_delta < 0 then dropdown_scroll_delta = 0;
-                if dropdown_scroll_delta + scroll_h > scrollbar.h then dropdown_scroll_delta = scrollbar.h - scroll_h;
-            }
-            
-            if is_hovering_over(ui_id) {
-                draw_rect(scroll, Colors.BACKGROUND_HIGHLIGHT);
-            } else {
-                draw_rect(scroll, Colors.BACKGROUND_BRIGHT);
-            }
-            
-            draw_rect(scrollbar_line, Colors.BACKGROUND_BRIGHT);
+        ui_id := get_ui_id_from_loc();
+        maybe_set_hot_or_active(ui_id, wrapper, .NORMAL);
+    
+        draw_rect(wrapper, Colors.SEARCH_RESULT_INACTIVE);  
+        
+        content_height := categories.count * LINE_HEIGHT;
+        if wrapper.h > content_height {
+            wrapper.y += wrapper.h - content_height;
+            wrapper.h = content_height;
         }
         
-        move := (dropdown_scroll_delta) / scrollbar.h  * dropdown_height;
-        dropdown_rect := make_rect(
-            dropdown_wrapper.x, 
-            dropdown_wrapper.y + dropdown_wrapper_height - dropdown_height + move, 
-            dropdown_wrapper.w, 
-            dropdown_height);
-         
-        rect : Rect;        
-        parent_ui_id := get_ui_id_from_loc();  
-
-        // Chosen category should go first
-        rect, dropdown_rect = cut_top(dropdown_rect, 36 * dpi_scale);
-        ui_id = get_ui_id_from_loc();
+        dropdown_rect := cut_left(wrapper, wrapper.w - 10*dpi_scale);
         
-        if is_hovering_over(ui_id) {
+        push_scissor(wrapper);
+        defer pop_scissor();
+        
+        scrollbar_id := get_ui_id_from_loc(parent_id = ui_id);
+        draw_scrollbar(wrapper, content_height, scrollbar_id, *dropdown_scroll_delta);
+        dropdown_rect.y += dropdown_scroll_delta; 
+
+        // Chosen category should go first                           
+        rect : Rect;        
+        rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
+        first_category_id := get_ui_id_from_loc();
+        maybe_set_hot_or_active(first_category_id, rect, .PRESSABLE); 
+        if is_hovering_over(first_category_id) {
             draw_rect(rect, Colors.BACKGROUND_LIGHT);
         }
-        
-        maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);                     
+                         
         width := cast(float) Simp.prepare_text(font, get_category_name(tr.category_id));
         pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
         Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
@@ -603,14 +576,14 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
         // Other categories go next 
         for *category, cat_index: categories {
             if category.id == tr.category_id then continue;
-            rect, dropdown_rect = cut_top(dropdown_rect, 36 * dpi_scale);
-            ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) cat_index * cast(s64) parent_ui_id));
+            rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
+            category_line_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) cat_index * cast(s64) ui_id));
             
-            if is_hovering_over(ui_id) {
+            if is_hovering_over(category_line_id) {
                 draw_rect(rect, Colors.BACKGROUND_LIGHT);
             }
             
-            became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);             
+            became_active := maybe_set_hot_or_active(category_line_id, rect, .PRESSABLE);             
             if became_active { 
                 tr.category_id = category.id;
                 dropdown_scroll_delta = 0;
@@ -651,9 +624,9 @@ draw_edit_category_dialog :: (loc := #caller_location) {
     
     pad, name_area, color_area, color_code_area: Rect;
     pad, dialog = cut_top(dialog, 16 * dpi_scale);
-    name_area, dialog = cut_top(dialog, 36 * dpi_scale);
+    name_area, dialog = cut_top(dialog, LINE_HEIGHT);
     color_area, dialog = cut_top(dialog, 100 * dpi_scale);
-    color_code_area, dialog = cut_top(dialog, 36 * dpi_scale);
+    color_code_area, dialog = cut_top(dialog, LINE_HEIGHT);
     color_code_area.w = 100 * dpi_scale;
     color_area.w = name_area.w / 4;
     color_area = shrink_y(color_area, 10 * dpi_scale);
@@ -822,8 +795,8 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
     
     pad, date_area, details_area, amount_area, category_area, note_area: Rect;
     pad, dialog = cut_top(dialog, 16 * dpi_scale);
-    details_area, dialog = cut_top(dialog, 36 * dpi_scale);
-    category_area, dialog = cut_top(dialog, 36 * dpi_scale);
+    details_area, dialog = cut_top(dialog, LINE_HEIGHT);
+    category_area, dialog = cut_top(dialog, LINE_HEIGHT);
     
     // Rule's details
     ui_id := get_ui_id_from_loc();
@@ -877,95 +850,6 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
     yes_chosen := maybe_set_hot_or_active(ui_id, yes, .PRESSABLE);
     no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);
     
-    // Draw dropdown
-    if should_show_category_dropdown {
-        dropdown_wrapper_height := 200 * dpi_scale; 
-        dropdown_height := categories.count * 36 * dpi_scale;
-        dropdown_wrapper := make_rect(
-            category_area.x, 
-            category_area.y + category_area.h  -  dropdown_wrapper_height, 
-            category_area.w, 
-            dropdown_wrapper_height);
-        draw_rect(dropdown_wrapper, Colors.SEARCH_RESULT_INACTIVE);
-        ui_id := get_ui_id_from_loc();
-        maybe_set_hot_or_active(ui_id, dropdown_wrapper, .NORMAL);  
-        
-        push_scissor(dropdown_wrapper);
-        defer pop_scissor();
-                           
-        // Scroll bar
-        scrollbar, scrollbar_line : Rect;
-        scrollbar, dropdown_wrapper = cut_right(dropdown_wrapper, 10 * dpi_scale);
-        scrollbar_line, scrollbar = cut_right(scrollbar, 2 * dpi_scale);
-        scroll_h := cast(float) scrollbar.h * scrollbar.h / dropdown_height; 
-        if dropdown_height > dropdown_wrapper_height { 
-            scroll_y := cast(float) scrollbar.y + (scrollbar.h - scroll_h) - dropdown_scroll_delta;
-            if scroll_y + scroll_h > scrollbar.y + scrollbar.h then scroll_y = scrollbar.y + scrollbar.h - scroll_h;
-            if scroll_y < scrollbar.y then scroll_y = scrollbar.y;
-            scroll := make_rect(cast(float) scrollbar.x, scroll_y, cast(float) scrollbar.w, scroll_h);
-            
-            ui_id := get_ui_id_from_loc();
-            became_active := maybe_set_hot_or_active(ui_id, scroll, .PRESSABLE, false);
-            if ui.active == ui_id {
-                dropdown_scroll_delta = (scrollbar.y + scrollbar.h) - mouse.pointer.y;
-                if dropdown_scroll_delta < 0 then dropdown_scroll_delta = 0;
-                if dropdown_scroll_delta + scroll_h > scrollbar.h then dropdown_scroll_delta = scrollbar.h - scroll_h;
-            }
-            
-            if is_hovering_over(ui_id) {
-                draw_rect(scroll, Colors.BACKGROUND_HIGHLIGHT);
-            } else {
-                draw_rect(scroll, Colors.BACKGROUND_BRIGHT);
-            }
-            
-            draw_rect(scrollbar_line, Colors.BACKGROUND_BRIGHT);
-        }
-        
-        move := (dropdown_scroll_delta) / scrollbar.h  * dropdown_height;
-        dropdown_rect := make_rect(
-            dropdown_wrapper.x, 
-            dropdown_wrapper.y + dropdown_wrapper_height - dropdown_height + move, 
-            dropdown_wrapper.w, 
-            dropdown_height);
-         
-        rect : Rect;        
-        parent_ui_id := get_ui_id_from_loc();  
-
-        // Chosen category should go first
-        rect, dropdown_rect = cut_top(dropdown_rect, 36 * dpi_scale);
-        ui_id = get_ui_id_from_loc();
-        
-        if is_hovering_over(ui_id) {
-            draw_rect(rect, Colors.BACKGROUND_LIGHT);
-        }
-        
-        maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);                     
-        width := cast(float) Simp.prepare_text(font, get_category_name(rule.category_id)); // Difference
-        pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
-        Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
-        
-        // Other categories go next 
-        for *category, cat_index: categories {
-            if category.id == rule.category_id then continue;
-            rect, dropdown_rect = cut_top(dropdown_rect, 36 * dpi_scale);
-            ui_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) cat_index * cast(s64) parent_ui_id));
-            
-            if is_hovering_over(ui_id) {
-                draw_rect(rect, Colors.BACKGROUND_LIGHT);
-            }
-            
-            became_active := maybe_set_hot_or_active(ui_id, rect, .PRESSABLE);             
-            if became_active {  // Difference
-                rule.category_id = category.id;
-                dropdown_scroll_delta = 0;
-            }
-            
-            width := cast(float) Simp.prepare_text(font, category.name);
-            pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
-            Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
-        }
-    }
-    
     if yes_chosen {    
         for *tr: transactions {
             if contains_nocase(tr.details, rule.name) { 
@@ -992,6 +876,67 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
         array_ordered_remove_by_index(*rules, rules.count-1);
         set_null_state();
     } 
+    
+    // Draw dropdown
+    if should_show_category_dropdown {
+        wrapper := category_area;
+        wrapper.h = 200 * dpi_scale;
+        wrapper.y = category_area.y + category_area.h - wrapper.h;
+        
+        ui_id := get_ui_id_from_loc();
+        maybe_set_hot_or_active(ui_id, wrapper, .NORMAL);
+    
+        draw_rect(wrapper, Colors.SEARCH_RESULT_INACTIVE);  
+        
+        content_height := categories.count * LINE_HEIGHT;
+        if wrapper.h > content_height {
+            wrapper.y += wrapper.h - content_height;
+            wrapper.h = content_height;
+        }
+        
+        dropdown_rect := cut_left(wrapper, wrapper.w - 10*dpi_scale);
+        
+        push_scissor(wrapper);
+        defer pop_scissor();
+        
+        scrollbar_id := get_ui_id_from_loc(parent_id = ui_id);
+        draw_scrollbar(wrapper, content_height, scrollbar_id, *dropdown_scroll_delta);
+        dropdown_rect.y += dropdown_scroll_delta;
+                           
+        // Chosen category should go first                           
+        rect : Rect;        
+        rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
+        first_category_id := get_ui_id_from_loc();
+        maybe_set_hot_or_active(first_category_id, rect, .PRESSABLE); 
+        if is_hovering_over(first_category_id) {
+            draw_rect(rect, Colors.BACKGROUND_LIGHT);
+        }
+                            
+        width := cast(float) Simp.prepare_text(font, get_category_name(rule.category_id)); // Difference
+        pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
+        Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+        
+        // Other categories go next 
+        for *category, cat_index: categories {
+            if category.id == rule.category_id then continue;
+            rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
+            category_line_id := get_ui_id_from_loc(parent_id = cast(Ui_Id) (cast(s64) cat_index * cast(s64) ui_id));
+            
+            if is_hovering_over(category_line_id) {
+                draw_rect(rect, Colors.BACKGROUND_LIGHT);
+            }
+            
+            became_active := maybe_set_hot_or_active(category_line_id, rect, .PRESSABLE);             
+            if became_active {  // Difference
+                rule.category_id = category.id;
+                dropdown_scroll_delta = 0;
+            }
+            
+            width := cast(float) Simp.prepare_text(font, category.name);
+            pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
+            Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+        }
+    }
 }
 
 draw_transactions :: (r: Rect) {
@@ -1000,11 +945,10 @@ draw_transactions :: (r: Rect) {
     count := transactions.count;
     if should_edit_transaction > -1 then count -= 1;
     
-    line_height := 36 * dpi_scale;
-    content_height := count * line_height;
+    content_height := count * LINE_HEIGHT;
     
     transactions_rect := draw_title(r, tprint("Transactions(%)", count));
-    transactions_buttons, wrapper := cut_bottom(transactions_rect, line_height);
+    transactions_buttons, wrapper := cut_bottom(transactions_rect, LINE_HEIGHT);
     
      if wrapper.h > content_height {
         wrapper.y += wrapper.h - content_height;
@@ -1025,7 +969,7 @@ draw_transactions :: (r: Rect) {
     rect : Rect;    
     for tr, tr_index: transactions {
         if tr_index == count && should_edit_transaction > -1 then break;  
-        rect, transactions_rect = cut_top(transactions_rect, 36 * dpi_scale);
+        rect, transactions_rect = cut_top(transactions_rect, LINE_HEIGHT);
         draw_rect(rect, Colors.BACKGROUND_LIGHT);
         
         draw_line_separator(rect);

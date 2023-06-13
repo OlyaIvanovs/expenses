@@ -255,6 +255,7 @@ dpi_scale := 1.0;
 padding :: #run 4 * dpi_scale;
 
 MAX_BUTTON_SIZE ::  #run 250 * dpi_scale;
+LINE_HEIGHT :: #run 36 * dpi_scale;
 
 enter_pressed := false;
 
