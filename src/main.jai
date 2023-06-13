@@ -254,6 +254,8 @@ screen: Rect;  // contains the current working area rect for convenience
 dpi_scale := 1.0;
 padding :: #run 4 * dpi_scale;
 
+MAX_BUTTON_SIZE ::  #run 250 * dpi_scale;
+
 enter_pressed := false;
 
 frame_time: Time;

@@ -111,7 +111,7 @@
 
 # 13/06/2023
 + Add scrollbar for rules
-- Change transaction's scrollbar
++ Change transaction's scrollbar
 - Add color picker
 
 
