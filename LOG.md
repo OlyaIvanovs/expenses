@@ -115,6 +115,7 @@
 + Update category dropdown
 
 # 14/06/2023
++  Mouse scroll
 - Add color picker
 
 # Next:
@@ -122,11 +123,9 @@
 - Transactions filter
 - Date picker
 
-Task: Mouse scroll
 Task: One size buttons(?)
 Task: Validation forms(edit&create)
 Task: Update style
-
 
 Graphs:
 Pie chart

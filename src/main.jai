@@ -157,6 +157,8 @@ update_mouse_state :: () {
     update_button(*mouse.left,   .MOUSE_BUTTON_LEFT);
     update_button(*mouse.right,  .MOUSE_BUTTON_RIGHT);
     update_button(*mouse.middle, .MOUSE_BUTTON_MIDDLE);
+    
+    mouse.scroll_y_delta = cast(s32) (cast(float) Input.mouse_delta_z);
 
     update_button :: (button: *Mouse_Button_State, key: Input.Key_Code) {
         button.is_down       = key_state(key) & .DOWN  != 0;  // NOTE: this doesn't include just_pressed!
