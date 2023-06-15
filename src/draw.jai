@@ -164,6 +164,11 @@ set_null_state :: () {
     should_edit_rule = -1;
     should_add_rule = false;
     should_remove_rule = -1;
+    
+    color_picker.hsv.hue = 0;
+    color_picker.hsv.saturation = 0;
+    color_picker.hsv.value = 0;
+    color_picker.load = false;
 }
 
 draw_settings :: (r: Rect) {    
@@ -300,7 +305,7 @@ draw_categories :: (r: Rect) {
         
         // Color icon
         color_rect = shrink(color_rect, 10 * dpi_scale);
-        c,ok := hex_to_color(category.color);
+        c, ok := hex_to_color(category.color);
         if !ok then c = Colors.RED;
         draw_rect(color_rect, c);
     }
@@ -615,19 +620,18 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     } 
 }
 
+
 // Edit and add category
 draw_edit_category_dialog :: (loc := #caller_location) {
     category := *categories[categories.count-1];
-    dialog := draw_dialog_base(270, 600);
+    dialog := draw_dialog_base(340, 600);
     
-    pad, name_area, color_area, color_code_area: Rect;
+    pad, name_area, color_area, color_hsv_area, color_hex_area, color_area_slider: Rect;
     pad, dialog = cut_top(dialog, 16 * dpi_scale);
     name_area, dialog = cut_top(dialog, LINE_HEIGHT);
-    color_area, dialog = cut_top(dialog, 100 * dpi_scale);
-    color_code_area, dialog = cut_top(dialog, LINE_HEIGHT);
-    color_code_area.w = 100 * dpi_scale;
-    color_area.w = name_area.w / 4;
-    color_area = shrink_y(color_area, 10 * dpi_scale);
+    color_area, dialog = cut_top(dialog, 150 * dpi_scale);
+    color_hex_area, dialog = cut_top(dialog, LINE_HEIGHT);
+    color_hsv_area, dialog = cut_top(dialog, LINE_HEIGHT);
     
     // Categorie's name
     ui_id := get_ui_id_from_loc();
@@ -647,26 +651,78 @@ draw_edit_category_dialog :: (loc := #caller_location) {
         if category.name == "" then draw_text_in_rect(name_area, "Add category name", Colors.UI_DIM); else draw_text_in_rect(name_area, category.name);  
     } 
     
-    // Categorie's color
-    draw_rect(color_area, hex_to_color(category.color));
+    // Hue slider
+    color_area_slider, color_area = cut_bottom(color_area, 20 * dpi_scale);
+    color_area_slider.w = 0.99 * color_area_slider.w;
+    color_area_slider_1 := color_area_slider;
+    color_area_slider_1.w = 0.165 * color_area.w;
+    color_area_slider_2 := color_area_slider_1;
+    color_area_slider_2.x += 0.165 * color_area.w;
+    color_area_slider_3 := color_area_slider_2;
+    color_area_slider_3.x += 0.165 * color_area.w;
+    color_area_slider_4 := color_area_slider_3;
+    color_area_slider_4.x += 0.165 * color_area.w;
+    color_area_slider_5 := color_area_slider_4;
+    color_area_slider_5.x += 0.165 * color_area.w;
+    color_area_slider_6 := color_area_slider_5;
+    color_area_slider_6.x += 0.165 * color_area.w;
     
-    ui_id = get_ui_id_from_loc();
-    became_active = maybe_set_hot_or_active(ui_id, color_code_area, .PRESSABLE, true);
-    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(color_code_area, Colors.SEARCH_RESULT_INACTIVE );
-    color := tprint("%", category.color); 
-    if ui.active_input == ui_id {
-        if became_active {
-            array_resize(*text_input.text, color.count);
-            memcpy(text_input.text.data, color.data, color.count);
-        }
-        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
-        input_rect := cut_top(color_code_area, input_height);
-        draw_text_input(*text_input, input_rect, ui_id);
-        if enter_pressed then ui.active_input = .none;        
-        category.color = copy_string(cast(string) text_input.text);        
-    } else {
-        draw_text_in_rect(color_code_area, color);  
+    // Set chosen color
+    if !color_picker.load {
+        color_picker.hsv = hex_to_hsv(category.color); 
+        color_picker.load = true;   
     } 
+    
+    color_hue_id := get_ui_id_from_loc();
+    maybe_set_hot_or_active(color_hue_id, color_area_slider, .PRESSABLE);
+    
+    if ui.active == color_hue_id && mouse_pointer_is_within(color_area_slider) {
+       color_picker.hsv.hue = ceil((mouse.pointer.x - color_area_slider.x)/color_area_slider.w * 360);
+    }
+    
+    color_area = shrink_y(color_area, 10 * dpi_scale);
+    color_area.w = 0.99 * color_area.w;
+    color_area_l, color_area_r := cut_left(color_area, 0.3 * color_area.w);
+    
+    color_sv_id := get_ui_id_from_loc();
+    maybe_set_hot_or_active(color_sv_id, color_area_r, .PRESSABLE);
+    
+    if ui.active == color_sv_id && mouse_pointer_is_within(color_area_r) {
+        color_picker.hsv.saturation = (mouse.pointer.x - color_area_r.x)/color_area_r.w;
+        color_picker.hsv.value = (mouse.pointer.y - color_area_r.y)/color_area_r.h;
+    }
+    
+    // HEX
+    c := hsv_to_color(color_picker.hsv);
+    text := tprint("HEX:  #%", color_to_hex(c, true));
+    draw_text_in_rect(color_hex_area, text);  
+    
+    // HSV
+    text = tprint("HSV:  %°, %2%%, %3%%", 
+        color_picker.hsv.hue, 
+        formatFloat(color_picker.hsv.saturation * 100, trailing_width=2, zero_removal=.NO), 
+        formatFloat(color_picker.hsv.value * 100, trailing_width=2, zero_removal=.NO));
+    draw_text_in_rect(color_hsv_area, text);  
+    
+    // Draw hue slider
+    draw_rect_raw(color_area_slider_1, Color.{r=1, g=0, b=0}, Color.{ r=1, g=0, b=0}, Color.{ r=1, g=1, b=0}, Color.{ r=1, g=1, b=0});
+    draw_rect_raw(color_area_slider_2, Color.{ r=1, g=1, b=0}, Color.{ r= 1, g=1, b= 0}, Color.{r=0, g=1, b=0}, Color.{r=0, g=1, b=0});
+    draw_rect_raw(color_area_slider_3, Color.{r=0, g=1, b=0}, Color.{r=0, g=1, b=0}, Color.{r=0, g=1, b=1}, Color.{r=0, g=1, b=1});
+    draw_rect_raw(color_area_slider_4, Color.{r=0, g=1, b=1}, Color.{r=0, g=1, b=1}, Color.{r=0, g=0, b=1}, Color.{r=0, g=0, b=1});
+    draw_rect_raw(color_area_slider_5, Color.{r=0, g=0, b=1}, Color.{r=0, g=0, b=1}, Color.{r=1, g=0, b=1}, Color.{r=1, g=0, b=1});
+    draw_rect_raw(color_area_slider_6, Color.{r=1, g=0, b=1}, Color.{r=1, g=0, b=1}, Color.{r=1, g=0, b=0}, Color.{r=1, g=0, b=0});
+
+    // Draw active color
+    draw_rect(color_area_l, hsv_to_color(color_picker.hsv));
+    
+    // Draw SV
+    draw_rect_raw(
+        color_area_r, 
+        hsv_to_color(HSV.{color_picker.hsv.hue, 0, 0}), 
+        hsv_to_color(HSV.{color_picker.hsv.hue, 0, 1}), 
+        hsv_to_color(HSV.{color_picker.hsv.hue, 1, 0}), 
+        hsv_to_color(HSV.{color_picker.hsv.hue, 1, 1}));
+        
      
     // Buttons
     buttons : Rect;
@@ -689,6 +745,7 @@ draw_edit_category_dialog :: (loc := #caller_location) {
     
     if yes_chosen {    
         text_input.text.count = 0;
+        category.color = copy_string(hsv_to_hex(color_picker.hsv));
         
         if should_add_category {
             ok := add_category_to_db(category.name, category.color);
@@ -708,6 +765,8 @@ draw_edit_category_dialog :: (loc := #caller_location) {
         set_null_state();
     } 
 }
+
+
 
 draw_remove_dialog :: (mode: string, loc := #caller_location) {    
     text : string;

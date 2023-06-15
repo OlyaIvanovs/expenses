@@ -102,3 +102,87 @@ hex_to_color :: (src_hex: string) -> Color, success: bool {
     return c, c.r >= 0 && c.g >= 0 && c.b >= 0 && c.a >= 0;
 }
 
+color_to_hex :: (using color: Color, ignore_alpha:bool =  false) -> string /* temp  */ {
+    r_u8 := cast(u8)(255 * r);
+    g_u8 := cast(u8)(255 * g);
+    b_u8 := cast(u8)(255 * b);
+    a_u8 := cast(u8)(255 * a);
+    if ignore_alpha then return tprint("%1%2%3", formatInt(r_u8, 16), formatInt(g_u8, 16), formatInt(b_u8, 16));
+    return tprint("%1%2%3%4", formatInt(r_u8, 16), formatInt(g_u8, 16), formatInt(b_u8, 16), formatInt(a_u8, 16));
+}
+
+hsv_to_color ::  (using hsv: HSV) -> Color {
+    if hue < 0 || hue > 360 return Color.{ r = 1, g = 1, b = 1};
+
+    chroma := value * saturation;
+    h := hue / 60;
+    x := chroma * (1 - abs(fmod_cycling(h, 2.0) - 1));
+    r, g, b : float;
+    
+    if h >= 0 && h < 1 {
+        r = chroma;
+        g = x;
+        b= 0;
+    } else if h >= 1 && h < 2 {
+        r = x;
+        g = chroma;
+        b= 0;
+    } else if h >= 2 && h < 3 {
+        r = 0;
+        g = chroma;
+        b= x;
+    } else if h >= 3 && h < 4 {
+        r = 0;
+        g = x;
+        b= chroma;
+    }  else if h >= 4 && h < 5 {
+        r = x;
+        g = 0;
+        b= chroma;
+    }  else if h >= 5 && h < 6 {
+        r = chroma;
+        g = 0;
+        b= x;
+    } 
+    
+    m := value - chroma;
+    r += m;
+    g += m;
+    b += m;
+    
+    return Color.{ r = r, g = g, b = b};
+}
+
+color_to_hsv :: (using color: Color) -> HSV {
+    xmax := max(r, g, b);
+    xmin := min(r, g, b);
+    c := xmax - xmin;
+    
+    h, s, v: float;
+    v = xmax;
+    
+    if c == 0 { 
+        h = 0;
+    } else if v == r {
+        h = fmod_cycling((g - b)/c, 6.0) * 60;
+    } else if v == g { 
+        h = ((b - r)/c + 2) * 60;
+    } else if v == b { 
+        h = ((r - g)/c + 4) * 60;
+    }
+     
+    if v == 0 then s = 0; else s = c/v;
+    
+    return HSV.{hue = h, saturation = s, value = v};
+}
+
+hsv_to_hex :: (using hsv: HSV) -> string {
+    c := hsv_to_color(hsv);
+    return color_to_hex(c, true);
+}
+
+hex_to_hsv :: (hex: string) -> HSV {
+    c := hex_to_color(hex);
+    return color_to_hsv(c);
+}
+

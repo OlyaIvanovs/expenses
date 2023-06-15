@@ -36,6 +36,10 @@ main :: () {
 
     screen  = make_rect(0, 0, window_width, window_height);
     Simp.set_render_target(window);
+    
+    color_picker.hsv.hue = 0;
+    color_picker.hsv.saturation = 0;
+    color_picker.hsv.value = 0;
 
     quit : bool;
     while !quit {
@@ -285,6 +289,18 @@ Mouse_Button_State :: struct {
     last_down_pos:  Vector2;
     last_down_time: Time;
 }
+
+color_picker: Color_Picker;
+Color_Picker :: struct {
+    hsv: HSV;
+    load: bool;
+} 
+
+HSV :: struct {
+    hue: float;
+    saturation: float;
+    value: float;
+}  
 
 Time :: #type,isa float64;
 
