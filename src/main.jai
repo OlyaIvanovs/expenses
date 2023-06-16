@@ -19,6 +19,8 @@ main :: () {
     
     ok = get_all_transactions_from_db();
     if !ok return;
+    transactions_filtered = transactions;
+    
     
     ok = get_all_categories_from_db();
     if !ok return;
@@ -46,6 +48,7 @@ main :: () {
         if !redraw_requested platform_wait_message();
         redraw_requested = false;
         enter_pressed = false;
+        key_pressed = false;
         
         frame_time = cast(Time) get_time();
         Input.update_window_events();
@@ -71,6 +74,8 @@ main :: () {
                 case .QUIT;  quit = true;
 
                 case .KEYBOARD;
+                    key_pressed = true;
+                    
                     if event.key_pressed == 0 continue;
 
                     if event.key_code == .ESCAPE {
@@ -225,7 +230,6 @@ Program_State :: enum {
     settings;
 }
 
-
 categories: [..] Category;
 Category :: struct {
     id: int;
@@ -241,6 +245,7 @@ Rule :: struct {
 }
 
 transactions_raw : [..]Transaction;
+transactions_filtered : [..]Transaction;
 transactions : [..]Transaction;
 Transaction :: struct {
     id: int;
@@ -264,6 +269,7 @@ MAX_BUTTON_SIZE ::  #run 250 * dpi_scale;
 LINE_HEIGHT :: #run 36 * dpi_scale;
 
 enter_pressed := false;
+key_pressed := false;
 
 frame_time: Time;
 redraw_requested := true;

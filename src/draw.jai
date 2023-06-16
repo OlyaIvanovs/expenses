@@ -433,7 +433,12 @@ draw_dialog_base :: (height: float, width: float) -> dialog: Rect {
 
 
 draw_edit_transaction_dialog :: (loc := #caller_location) {
-    tr := *transactions[transactions.count-1];
+    tr : Transaction;
+    for t: transactions {
+        if t.id == should_edit_transaction then {tr = t; break;}            
+    } 
+    if tr.id == 0 && tr.id != should_edit_transaction then return;
+    
     dialog := draw_dialog_base(260, 600);
     
     ui_id := get_ui_id_from_loc();  
@@ -615,8 +620,15 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
                     transactions[index] = tr;                            
                     break;
                 }
-            }       
+            }     
+            for *t, index : transactions_filtered {
+                if t.id == should_edit_transaction {
+                    transactions_filtered[index] = tr;                            
+                    break;
+                }
+            }   
             array_ordered_remove_by_index(*transactions, transactions.count-1);
+            array_ordered_remove_by_index(*transactions_filtered, transactions_filtered.count-1);
         }
         
         set_null_state();
@@ -624,6 +636,7 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     
     if no_chosen {
         array_ordered_remove_by_index(*transactions, transactions.count-1);
+        array_ordered_remove_by_index(*transactions_filtered, transactions_filtered.count-1);
         set_null_state();
     } 
 }
@@ -828,6 +841,11 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
                     array_ordered_remove_by_index(*transactions, index);
                 }
             }
+            for tr, index: transactions_filtered {
+                if tr.id == should_remove_transaction {
+                    array_ordered_remove_by_index(*transactions_filtered, index);
+                }
+            }
             
             set_null_state();
             return;
@@ -1020,14 +1038,7 @@ draw_icon :: (icon_unicode: u16, icon_rect: Rect, color: Color = Colors.UI_DEFAU
 
 draw_transactions :: (r: Rect) {
     date_rect, details_rect, amount_rect, category_rect, icons_rect, icon_rect, rect, pad: Rect; 
-    count := 0;
-    if transactions_search == "" {
-        count = transactions.count;
-    } else {
-        for tr: transactions {
-            if contains_nocase(tr.details, transactions_search) then count += 1;
-        }
-    }
+    count := transactions_filtered.count;
     
     if should_edit_transaction > -1 then count -= 1;
     
@@ -1054,7 +1065,6 @@ draw_transactions :: (r: Rect) {
     draw_text_in_rect(category_rect, "Category");
     draw_icon(0xf107, icon_rect);
     
-    
     // Amount Sort
     amount_rect, transactions_filter_panel = cut_right(transactions_filter_panel, 0.1 * line_width);
     amount_rect, icon_rect = cut_left(amount_rect, 65 * dpi_scale);;
@@ -1075,6 +1085,14 @@ draw_transactions :: (r: Rect) {
     
     if ui.active_input == tr_filter_id {
         draw_text_input(*text_input, input_rect, tr_filter_id, Colors.UI_DIM);
+        if key_pressed {
+            transactions_search = copy_string(cast(string) text_input.text);
+            tr_array : [..]Transaction;
+            for tr: transactions {
+                if contains_nocase(tr.details, transactions_search) then array_add(*tr_array, tr);
+            }
+            transactions_filtered = tr_array;
+        } 
     } else {
         rect := snap_to_grid(input_rect);
         draw_rect(rect, Colors.BACKGROUND);
@@ -1084,11 +1102,9 @@ draw_transactions :: (r: Rect) {
     
     if enter_pressed { 
         ui.active_input = .none;
-        transactions_search = copy_string(cast(string) text_input.text);
     }
     
     transactions_buttons, wrapper := cut_bottom(transactions_rect, LINE_HEIGHT + padding);
-    
      if wrapper.h > content_height {
         wrapper.y += wrapper.h - content_height;
         transactions_buttons.y += wrapper.h - content_height;
@@ -1108,8 +1124,7 @@ draw_transactions :: (r: Rect) {
     trash_icon_unicode := 0xf1f8;
     trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
           
-    for tr, tr_index: transactions {
-        if transactions_search != "" && !contains_nocase(tr.details, transactions_search) then continue;
+    for tr, tr_index: transactions_filtered {
         if tr_index == count && should_edit_transaction > -1 then break;  
         rect, transactions_rect = cut_top(transactions_rect, LINE_HEIGHT);
         
@@ -1138,6 +1153,7 @@ draw_transactions :: (r: Rect) {
         if became_active && should_remove_transaction < 0 {
             should_edit_transaction = tr.id;
             array_add(*transactions, transactions[tr_index]);
+            array_add(*transactions_filtered, transactions[tr_index]);
         }
         
         // Date
