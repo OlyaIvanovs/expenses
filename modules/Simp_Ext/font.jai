@@ -204,7 +204,7 @@ convert_to_temporary_glyphs_with_max_width :: (font: *Dynamic_Font, s: string, m
                 s1 := "...";
                 t1 := s1.data;
                 while t1 < s1.data + s1.count {
-                    utf32 := character_utf8_to_utf32(t1, s1.data + s1.count - t);
+                    utf32 := character_utf8_to_utf32(t1, s1.data + s1.count - t1);
                     glyph := find_or_create_glyph(font, utf32);
             
                     if glyph {
@@ -493,7 +493,10 @@ prepare_text :: (font: *Dynamic_Font, text: string) -> width: s64 {
 }
 
 prepare_text_with_max_width :: (font: *Dynamic_Font, text: string, max_width: s64) -> width: s64 {
-    width := convert_to_temporary_glyphs_with_max_width(font, text, max_width);
+    width := convert_to_temporary_glyphs(font, text);
+    if width > max_width {
+        width = convert_to_temporary_glyphs_with_max_width(font, text, max_width);
+    }
     return width;
 }
 

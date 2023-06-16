@@ -1010,8 +1010,16 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
     }
 }
 
+draw_icon :: (icon_unicode: u16, icon_rect: Rect, color: Color = Colors.UI_DEFAULT) {
+    icon_char := convert_utf32_to_utf8(xx icon_unicode);
+    Simp.prepare_text(font_icons, to_string(*icon_char));
+    pen := make_vector2(icon_rect.x, 
+                        icon_rect.y + (icon_rect.h - font.character_height) / 2 + 2 * dpi_scale);
+    Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, color);
+}
+
 draw_transactions :: (r: Rect) {
-    date_rect, details_rect, amount_rect, category_rect, icons_rect, rect, pad: Rect; 
+    date_rect, details_rect, amount_rect, category_rect, icons_rect, icon_rect, rect, pad: Rect; 
     count := 0;
     if transactions_search == "" {
         count = transactions.count;
@@ -1036,29 +1044,29 @@ draw_transactions :: (r: Rect) {
     
     // Date Sort
     date_rect, transactions_filter_panel = cut_left(transactions_filter_panel, 150 * dpi_scale);
+    date_rect, icon_rect = cut_left(date_rect, 50 * dpi_scale);
     draw_text_in_rect(date_rect, "Date");
+    draw_icon(0xf07d, icon_rect);
     
     // Category Filter
     category_rect, transactions_filter_panel = cut_right(transactions_filter_panel, 0.1 * line_width + 20 * dpi_scale); // + trash icon width
+    category_rect, icon_rect = cut_left(category_rect, 85 * dpi_scale); 
     draw_text_in_rect(category_rect, "Category");
+    draw_icon(0xf107, icon_rect);
+    
     
     // Amount Sort
     amount_rect, transactions_filter_panel = cut_right(transactions_filter_panel, 0.1 * line_width);
+    amount_rect, icon_rect = cut_left(amount_rect, 65 * dpi_scale);;
     draw_text_in_rect(amount_rect, "Amount");
+    draw_icon(0xf07d, icon_rect);
     
     // Details Filter
     transactions_filter := transactions_filter_panel;
-    transactions_filter_icon := transactions_filter;
-    transactions_filter_icon.w = 20 * dpi_scale;
+    icon_rect = transactions_filter;
+    icon_rect.w = 20 * dpi_scale;
     transactions_filter = shrink_x(transactions_filter, 20 * dpi_scale);
-    
-    // Search icon
-    search_icon_unicode := 0xf002;
-    search_icon_char := convert_utf32_to_utf8(xx search_icon_unicode);
-    Simp.prepare_text(font_icons, to_string(*search_icon_char));
-    pen := make_vector2(transactions_filter_icon.x, 
-                        transactions_filter_icon.y + (transactions_filter_icon.h - font.character_height) / 2 + 2 * dpi_scale);
-    Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.SELECTION_ACTIVE);
+    draw_icon(0xf002, icon_rect, Colors.SELECTION_ACTIVE);
     
     tr_filter_id := get_ui_id_from_loc();
     became_active := maybe_set_hot_or_active(tr_filter_id, transactions_filter, .PRESSABLE, true);
@@ -1317,7 +1325,7 @@ draw_rect_raw :: inline (using rect: Rect, c00: Color, c01: Color, c10: Color, c
 }
 
 draw_text_in_rect :: (rect : Rect, text: string, color : Color = Colors.UI_DEFAULT) {
-    if text.count == 0 then return; 
+    if !text return; 
     width := cast(float) Simp.prepare_text_with_max_width(font, text, xx (rect.w - 5 * dpi_scale));
     pen := Vector2.{
         rect.x + 5 * dpi_scale, 
