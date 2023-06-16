@@ -140,6 +140,9 @@ rules_scroll_delta :float = 0;
 transactions_scroll_grip :float = 0;
 scrollbar_grab_point :float = 0;
 
+// Search and filter
+transactions_search := "";
+
 should_remove_category := -1;
 should_edit_category := -1;
 should_add_category := false;
@@ -606,8 +609,13 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
             if !ok then return;  
         } else if should_edit_transaction > -1 { 
             ok := add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
-            if !ok then return;       
-            transactions[should_edit_transaction] = tr;
+            if !ok then return;
+            for *t, index : transactions {
+                if t.id == should_edit_transaction {
+                    transactions[index] = tr;                            
+                    break;
+                }
+            }       
             array_ordered_remove_by_index(*transactions, transactions.count-1);
         }
         
@@ -674,22 +682,21 @@ draw_edit_category_dialog :: (loc := #caller_location) {
     } 
     
     color_hue_id := get_ui_id_from_loc();
-    maybe_set_hot_or_active(color_hue_id, color_area_slider, .PRESSABLE);
-    
+    maybe_set_hot_or_active(color_hue_id, color_area_slider, .PRESSABLE);   
     if ui.active == color_hue_id && mouse_pointer_is_within(color_area_slider) {
        color_picker.hsv.hue = ceil((mouse.pointer.x - color_area_slider.x)/color_area_slider.w * 360);
     }
     
     color_area = shrink_y(color_area, 10 * dpi_scale);
     color_area.w = 0.99 * color_area.w;
-    color_area_l, color_area_r := cut_left(color_area, 0.3 * color_area.w);
+    color_area_active_color, color_area_sv := cut_left(color_area, 0.3 * color_area.w);
     
     color_sv_id := get_ui_id_from_loc();
-    maybe_set_hot_or_active(color_sv_id, color_area_r, .PRESSABLE);
+    maybe_set_hot_or_active(color_sv_id, color_area_sv, .PRESSABLE);
     
-    if ui.active == color_sv_id && mouse_pointer_is_within(color_area_r) {
-        color_picker.hsv.saturation = (mouse.pointer.x - color_area_r.x)/color_area_r.w;
-        color_picker.hsv.value = (mouse.pointer.y - color_area_r.y)/color_area_r.h;
+    if ui.active == color_sv_id && mouse_pointer_is_within(color_area_sv) {
+        color_picker.hsv.saturation = (mouse.pointer.x - color_area_sv.x)/color_area_sv.w;
+        color_picker.hsv.value = (mouse.pointer.y - color_area_sv.y)/color_area_sv.h;
     }
     
     // HEX
@@ -713,11 +720,11 @@ draw_edit_category_dialog :: (loc := #caller_location) {
     draw_rect_raw(color_area_slider_6, Color.{r=1, g=0, b=1}, Color.{r=1, g=0, b=1}, Color.{r=1, g=0, b=0}, Color.{r=1, g=0, b=0});
 
     // Draw active color
-    draw_rect(color_area_l, hsv_to_color(color_picker.hsv));
+    draw_rect(color_area_active_color, hsv_to_color(color_picker.hsv));
     
     // Draw SV
     draw_rect_raw(
-        color_area_r, 
+        color_area_sv, 
         hsv_to_color(HSV.{color_picker.hsv.hue, 0, 0}), 
         hsv_to_color(HSV.{color_picker.hsv.hue, 0, 1}), 
         hsv_to_color(HSV.{color_picker.hsv.hue, 1, 0}), 
@@ -767,7 +774,6 @@ draw_edit_category_dialog :: (loc := #caller_location) {
 }
 
 
-
 draw_remove_dialog :: (mode: string, loc := #caller_location) {    
     text : string;
     if mode == {
@@ -778,7 +784,12 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
         case "all_transactions"; 
             text = sprint("Are you sure you want to remove all transactions?");
         case "transaction";
-            text = sprint("Are you sure you want to remove transaction '%'?", transactions[should_remove_transaction].details);
+            for tr: transactions {
+                if tr.id == should_remove_transaction {
+                    text = sprint("Are you sure you want to remove transaction '%'?", tr.details);
+                    break;
+                }
+            }
     }
     width := cast(float) Simp.prepare_text(font, text);
     dialog := draw_dialog_base(120, width + 40);
@@ -810,9 +821,14 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
             return;
             
         case "transaction";
-            ok := delete_transaction_from_db(transactions[should_remove_transaction].id);
+            ok := delete_transaction_from_db(should_remove_transaction);
             if !ok then return;
-            array_ordered_remove_by_index(*transactions, should_remove_transaction);
+            for tr, index: transactions {
+                if tr.id == should_remove_transaction {
+                    array_ordered_remove_by_index(*transactions, index);
+                }
+            }
+            
             set_null_state();
             return;
             
@@ -841,8 +857,6 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
     if no_chosen {
         set_null_state();
     }
-    
-    return;
 }
 
 // Edit and add rules
@@ -997,12 +1011,74 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
 }
 
 draw_transactions :: (r: Rect) {
-    count := transactions.count;
+    date_rect, details_rect, amount_rect, category_rect, icons_rect, rect, pad: Rect; 
+    count := 0;
+    if transactions_search == "" {
+        count = transactions.count;
+    } else {
+        for tr: transactions {
+            if contains_nocase(tr.details, transactions_search) then count += 1;
+        }
+    }
+    
     if should_edit_transaction > -1 then count -= 1;
     
     content_height := count * LINE_HEIGHT;
     
     transactions_rect := draw_title(r, tprint("Transactions(%)", count));
+    
+    // Filter && Sort
+    transactions_filter_panel: Rect;
+    transactions_filter_panel, transactions_rect = cut_top(transactions_rect, LINE_HEIGHT + padding);
+    pad, transactions_filter_panel = cut_top(transactions_filter_panel, padding);
+    transactions_filter_panel = shrink_x(transactions_filter_panel, 0.015 * window_width);
+    line_width := transactions_filter_panel.w;
+    
+    // Date Sort
+    date_rect, transactions_filter_panel = cut_left(transactions_filter_panel, 150 * dpi_scale);
+    draw_text_in_rect(date_rect, "Date");
+    
+    // Category Filter
+    category_rect, transactions_filter_panel = cut_right(transactions_filter_panel, 0.1 * line_width + 20 * dpi_scale); // + trash icon width
+    draw_text_in_rect(category_rect, "Category");
+    
+    // Amount Sort
+    amount_rect, transactions_filter_panel = cut_right(transactions_filter_panel, 0.1 * line_width);
+    draw_text_in_rect(amount_rect, "Amount");
+    
+    // Details Filter
+    transactions_filter := transactions_filter_panel;
+    transactions_filter_icon := transactions_filter;
+    transactions_filter_icon.w = 20 * dpi_scale;
+    transactions_filter = shrink_x(transactions_filter, 20 * dpi_scale);
+    
+    // Search icon
+    search_icon_unicode := 0xf002;
+    search_icon_char := convert_utf32_to_utf8(xx search_icon_unicode);
+    Simp.prepare_text(font_icons, to_string(*search_icon_char));
+    pen := make_vector2(transactions_filter_icon.x, 
+                        transactions_filter_icon.y + (transactions_filter_icon.h - font.character_height) / 2 + 2 * dpi_scale);
+    Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.SELECTION_ACTIVE);
+    
+    tr_filter_id := get_ui_id_from_loc();
+    became_active := maybe_set_hot_or_active(tr_filter_id, transactions_filter, .PRESSABLE, true);
+    input_height := cast(float) font_ui.default_line_spacing + 3 * padding;
+    input_rect := cut_top(transactions_filter, input_height);
+    
+    if ui.active_input == tr_filter_id {
+        draw_text_input(*text_input, input_rect, tr_filter_id, Colors.UI_DIM);
+    } else {
+        rect := snap_to_grid(input_rect);
+        draw_rect(rect, Colors.BACKGROUND);
+        draw_line_separator(rect);
+        draw_text_in_rect(rect, transactions_search, Colors.UI_DIM);
+    }
+    
+    if enter_pressed { 
+        ui.active_input = .none;
+        transactions_search = copy_string(cast(string) text_input.text);
+    }
+    
     transactions_buttons, wrapper := cut_bottom(transactions_rect, LINE_HEIGHT + padding);
     
      if wrapper.h > content_height {
@@ -1023,9 +1099,9 @@ draw_transactions :: (r: Rect) {
     // Trash icon
     trash_icon_unicode := 0xf1f8;
     trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
-        
-    rect : Rect;    
+          
     for tr, tr_index: transactions {
+        if transactions_search != "" && !contains_nocase(tr.details, transactions_search) then continue;
         if tr_index == count && should_edit_transaction > -1 then break;  
         rect, transactions_rect = cut_top(transactions_rect, LINE_HEIGHT);
         
@@ -1034,29 +1110,27 @@ draw_transactions :: (r: Rect) {
         
         tr_line_id := get_ui_id_from_loc_with_index(ui_id, tr_index);
         became_active := maybe_set_hot_or_active(tr_line_id, rect, .PRESSABLE);
-        
-        date_rect, details_rect, amount_rect, category_rect, icons_rect: Rect;
+    
         icons_rect, rect = cut_right(rect, 20 * dpi_scale);
         
         // Show icons on hover
         if is_hovering_over(tr_line_id) {
-            trash_icon_width := cast(float) Simp.prepare_text(font_icons, to_string(*trash_icon_char));
+            Simp.prepare_text(font_icons, to_string(*trash_icon_char));
             pen := make_vector2(icons_rect.x, icons_rect.y + (icons_rect.h - font.character_height) / 2 + 2 * dpi_scale);
     
             if mouse_pointer_is_within(icons_rect) {
                 Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DIM);
-                if became_active then should_remove_transaction = tr_index;
+                if became_active then should_remove_transaction = tr.id;
             } else {
                 Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
             }
          }
         
+        // Edit transaction
         if became_active && should_remove_transaction < 0 {
-            should_edit_transaction = tr_index;
+            should_edit_transaction = tr.id;
             array_add(*transactions, transactions[tr_index]);
         }
-         
-        line_width := rect.w;
         
         // Date
         date_rect, rect = cut_left(rect, 150 * dpi_scale);
@@ -1090,7 +1164,7 @@ draw_transactions :: (r: Rect) {
      
     draw_button(upload_button, "Upload transactions");
     upload_button_id := get_ui_id_from_loc();
-    became_active := maybe_set_hot_or_active(upload_button_id, upload_button, .PRESSABLE);
+    became_active = maybe_set_hot_or_active(upload_button_id, upload_button, .PRESSABLE);
     if became_active {
         file_name, ok := get_upload_file_name();
         if !ok return;
@@ -1120,15 +1194,12 @@ draw_transactions :: (r: Rect) {
     }
 }
 
-draw_text_input :: (using text_input: *Text_Input, r: Rect, ui_id: Ui_Id) {
-    // input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
-    // input_rect := cut_top(r, input_height);
+draw_text_input :: (using text_input: *Text_Input, r: Rect, ui_id: Ui_Id, color: Color = Colors.UI_DEFAULT) {
     input_rect := r;
 
     rect := snap_to_grid(input_rect);
-    // draw_rect(rect, Colors.BACKGROUND_DARK);
-    rect = shrink(rect, 1);
-    // draw_rect(rect, Colors.BACKGROUND);
+    draw_rect(rect, Colors.BACKGROUND);
+    draw_line_separator(rect);
 
     push_scissor(rect);
     defer pop_scissor();
@@ -1177,7 +1248,6 @@ draw_text_input :: (using text_input: *Text_Input, r: Rect, ui_id: Ui_Id) {
         // the expected behavior of changing the cursor position.
         rel_x := cast(s64) (mouse.pointer.x + 2 * dpi_scale - (rect.x + padding)) + scroll_x;
         cursor_rect := make_rect(xx (mouse.pointer.x + 2 * dpi_scale), xx mouse.pointer.y, 50, 100);
-        draw_rect(cursor_rect, Colors.RED);
         
         // TODO: review !!!!!!!!!!!!!!!!!!!!!!
         cursor.pos = Simp.get_cursor_pos_for_width(font_ui, to_string(text), rel_x);
@@ -1206,8 +1276,7 @@ draw_text_input :: (using text_input: *Text_Input, r: Rect, ui_id: Ui_Id) {
     draw_rect(cursor_rect, Colors.CURSOR);
 
     y := rect.y + (rect.h - font_ui.character_height) / 2.0 + 2 * dpi_scale;
-    Simp.draw_text(font_ui, xx text_start_x, xx y, to_string(text), Colors.UI_DEFAULT);
-
+    Simp.draw_text(font_ui, xx text_start_x, xx y, to_string(text), color);
 }
 
 draw_line_separator :: (rect: Rect) {

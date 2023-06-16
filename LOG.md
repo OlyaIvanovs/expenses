@@ -115,13 +115,20 @@
 + Update category dropdown
 
 # 14/06/2023
-+  Mouse scroll
-- Add color picker
++ Mouse scroll
+
+# 15/06/2023
++ Add color picker
+
+# 16/06/2023
++ Transactions filter
+- Date sort
 
 # Next:
-- Add transactions search
-- Transactions filter
 - Date picker
+- Category filter
+- Amount sort
+- Buttons icons ?
 
 Task: One size buttons(?)
 Task: Validation forms(edit&create)
