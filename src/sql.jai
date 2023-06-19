@@ -102,10 +102,41 @@ add_category_to_db :: (id: int, name: string, color: string) -> bool {
     return execute_simple_db_query(tprint(sql_str, id, name, color));
 }
 
-add_category_to_db :: (name: string, color: string) -> bool {
+add_category_to_db :: (name: string, color: string) -> int, bool {
     sql_str :: "INSERT OR REPLACE INTO Categories(name, color) VALUES('%', '%');";
-    return execute_simple_db_query(tprint(sql_str, name, color));
+    ok := execute_simple_db_query(tprint(sql_str, name, color));
+    if !ok return 0, false;
+    id : int;
+    id, ok = get_last_id();
+    if !ok return 0, false;
+    return id, ok;
 }
+
+get_last_id :: () -> (int, bool) {
+    query := to_c_string("SELECT last_insert_rowid();");
+    defer free(query);
+    errmsg : *u8;
+    last_id: int;
+    result := sqlite3_exec(db, query, get_last_id_from_db, *last_id, *errmsg);
+    if result != SQLITE_OK {
+        log_error("ERROR: %\n",from_c_string(errmsg));
+        return 0, false;
+    }
+    return last_id, true;
+}
+
+get_last_id_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+    new_context: Context;
+    push_context new_context {
+        assert(num_cols == 1);
+        last_id := cast(*int) userdata;
+        id, ok := parse_int(*from_c_string(col_data[0]));
+        if !ok then log_error("Couldn't parse id from string");
+        <<last_id = id;
+    }
+    return SQLITE_OK;
+}
+
 
 add_rule_to_db :: (id: int, name: string, category_id: int) -> bool {
     sql_str :: "INSERT OR REPLACE INTO Rules(id, name, category_id) VALUES(%, '%', %);";
@@ -122,9 +153,14 @@ add_transaction_to_db :: (id: int, date: string, amount: float64, details: strin
     return execute_simple_db_query(tprint(sql_str, id, date, amount, details, note, category_id));
 }
 
-add_transaction_to_db :: (date: string, amount: float64, details: string, note: string, category_id: int) -> bool {
+add_transaction_to_db :: (date: string, amount: float64, details: string, note: string, category_id: int) -> int, bool {
     sql_str :: "INSERT OR REPLACE INTO Transactions(transaction_date, amount, details, note, category_id) VALUES('%', %, '%', '%', %);";
-    return execute_simple_db_query(tprint(sql_str, date, amount, details, note, category_id));
+    ok := execute_simple_db_query(tprint(sql_str, date, amount, details, note, category_id));
+    if !ok return 0, false;
+    id : int;
+    id, ok = get_last_id();
+    if !ok return 0, false;
+    return id, ok;
 }
 
 execute_simple_db_query :: (select: string) -> bool{

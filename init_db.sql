@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS Transactions (
             ON UPDATE NO ACTION
 );
 
+INSERT OR IGNORE INTO Categories(id, name, color) VALUES(0, "UNCATEGORISED", "540d11");
 INSERT OR IGNORE INTO Categories(id, name, color) VALUES(1, "Food", "540d6e");
 INSERT OR IGNORE INTO Categories(id, name, color) VALUES(2, "Rent", "ee4266");
 INSERT OR IGNORE INTO Categories(id, name, color) VALUES(3, "Cafe", "ffd23f");

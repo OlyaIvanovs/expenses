@@ -21,7 +21,6 @@ main :: () {
     if !ok return;
     transactions_filtered = transactions;
     
-    
     ok = get_all_categories_from_db();
     if !ok return;
     
