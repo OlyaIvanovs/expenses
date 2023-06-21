@@ -129,7 +129,8 @@
 + Amount sort
 
 # 21/06/2023
-- Date picker
++ Enter&validate date
+- Error/validate/confirm message
 - Dialog's inputs
 
 # Next:

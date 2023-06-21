@@ -434,7 +434,6 @@ draw_dialog_base :: (height: float, width: float) -> dialog: Rect {
     return dialog;
 }
 
-
 draw_edit_transaction_dialog :: (loc := #caller_location) {    
     pad, date_area, details_area, amount_area, category_area, note_area: Rect;
     dialog := draw_dialog_base(260, 600);
@@ -450,18 +449,38 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     note_area, dialog = cut_top(dialog, LINE_HEIGHT);
 
     // Transaction's date
-    if new_transaction.date == "" {
-        cal := to_calendar(current_time_consensus());
-        new_transaction.date = copy_string(tprint("%/%/%", 
-            cal.year, 
-            formatInt(cal.month_starting_at_0+1, minimum_digits=2), 
-            formatInt(cal.day_of_month_starting_at_0+1, minimum_digits=2)));
+    tr_date_id := get_ui_id_from_loc();
+    if new_transaction.date == "" then new_transaction.date = copy_string(today_to_string());
+    became_active := maybe_set_hot_or_active(tr_date_id, date_area, .PRESSABLE, true);
+    if is_hovering_over(tr_date_id) || ui.active_input == tr_date_id then draw_rect(date_area, Colors.SEARCH_RESULT_INACTIVE );
+    
+    if enter_pressed && ui.last_active_input == tr_date_id && ui.active_input == .none {
+        new_date := cast(string) text_input.text;
+        ok := date_string_is_valid(new_date);
+        if !ok {
+            print("Validation error");
+            new_transaction.date = copy_string(today_to_string());
+        } else {
+            new_transaction.date = copy_string(new_date);   
+        }
     }
-    draw_text_in_rect(date_area, new_transaction.date);
+    
+    if ui.active_input == tr_date_id {
+        if became_active {
+            array_resize(*text_input.text, new_transaction.date.count);
+            memcpy(text_input.text.data, new_transaction.date.data, new_transaction.date.count);
+        }
+        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
+        input_rect := cut_top(date_area, input_height);
+        draw_text_input(*text_input, input_rect, tr_date_id);
+    } else {
+        draw_text_in_rect(date_area, new_transaction.date);
+    }
+    
     
     // Transaction's details
     tr_details_id := get_ui_id_from_loc();
-    became_active := maybe_set_hot_or_active(tr_details_id, details_area, .PRESSABLE, true);
+    became_active = maybe_set_hot_or_active(tr_details_id, details_area, .PRESSABLE, true);
     if is_hovering_over(tr_details_id) || ui.active_input == tr_details_id then draw_rect(details_area, Colors.SEARCH_RESULT_INACTIVE );
     if ui.active_input == tr_details_id {
         if became_active {
@@ -1481,20 +1500,13 @@ set_max_size_button :: (r: Rect) -> Rect {
     return button;
 }
 
-get_category_name :: (category_id: int) -> string{
-    if category_id == -1 then return "All categories";
-    for categories if it.id == category_id { 
-        return  it.name;
-    }
-    return "UNCATEGORISED";
-}
-
 maybe_set_hot_or_active :: (ui_id: Ui_Id, rect: Rect, pointer_image: Pointer_Image) -> became_active: bool {
     if !mouse_pointer_is_within(rect) return false;
 
     ui.hot = ui_id;
     if ui.hot_last_frame == ui_id && ui.active == .none || ui.active == ui_id then set_pointer_image(pointer_image);
     if ui.hot_last_frame == ui_id && ui.active == .none && mouse.left.just_pressed {
+        ui.last_active_input = ui.active_input;
         ui.active_input = .none; 
         ui.active = ui_id;
         return true;
@@ -1510,7 +1522,10 @@ maybe_set_hot_or_active :: (ui_id: Ui_Id, rect: Rect, pointer_image: Pointer_Ima
     if ui.hot_last_frame == ui_id && ui.active == .none || ui.active == ui_id then set_pointer_image(pointer_image);
     if ui.hot_last_frame == ui_id && ui.active == .none && mouse.left.just_pressed {
         ui.active = ui_id;
-        if is_input then ui.active_input = ui_id; 
+        if is_input {
+            ui.active_input = ui_id; 
+            ui.last_active_input = ui_id;
+        }
         return true;
     }
     
@@ -1594,6 +1609,7 @@ ui: struct {
     hot:    Ui_Id = .none;
     hot_last_frame: Ui_Id = .none;
     active_input: Ui_Id = .none;
+    last_active_input: Ui_Id = .none;
 };
 
 

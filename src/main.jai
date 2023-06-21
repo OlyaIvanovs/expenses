@@ -323,8 +323,14 @@ filter := Filter.{
     amount_sort         = 0,
     date_sort           = 0,
 };
-    
 
+Message :: struct {
+    show: bool;
+    text: string;
+    time_start: Time;
+}
+message := Message.{show=false};
+    
 Time :: #type,isa float64;
 
 MAX_FRAME_DT :: 1.0 / 60;

@@ -78,8 +78,6 @@ get_upload_file_name :: () -> string /* temp */, success: bool {
     return "", false;
 }
 
-
-// Upload transactions
 upload_transactions_from_file :: (file_name: string) -> bool {
     contents, success := read_entire_file(file_name);
     assert(success);
@@ -120,6 +118,48 @@ upload_transactions_from_file :: (file_name: string) -> bool {
     }
     
     return true;
+}
+
+get_category_name :: (category_id: int) -> string{
+    if category_id == -1 then return "All categories";
+    for categories if it.id == category_id { 
+        return  it.name;
+    }
+    return "UNCATEGORISED";
+}
+
+// date format yyyy/mm/dd
+date_string_is_valid :: (date: string) -> bool {
+    if date.count != 10 return false; 
+    d := date;
+    ok, year_str, month_and_day := split_from_left(d, #char "/");
+    if !ok return false;
+    ok2, month_str, day_str := split_from_left(month_and_day, #char "/");
+    if !ok2 return false;
+
+    year, day, month : int;
+    year, ok = string_to_int(year_str);
+    if year < 1000 || year > 2500 return false;
+    month, ok = string_to_int(month_str);
+    if month < 1 || month > 12 return false;
+    day, ok = string_to_int(day_str);
+    if day < 1 && day > 31 return false;
+    if (month == 4 || month == 6 || month == 9 || month == 11) && day > 30 {
+        return false;
+    } else if month == 2 {
+        if (year % 4 == 0 && (year % 100 == 0 || year % 400 == 0) && day > 29) || (day > 28) {
+            return false;
+        }
+    } 
+    return true;
+}
+
+today_to_string :: () -> string {
+    cal := to_calendar(current_time_consensus());
+    return tprint("%/%/%", 
+        cal.year, 
+        formatInt(cal.month_starting_at_0+1, minimum_digits=2), 
+        formatInt(cal.day_of_month_starting_at_0+1, minimum_digits=2));
 }
 
 
