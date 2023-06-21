@@ -122,14 +122,17 @@
 
 # 16/06/2023
 + Transactions filter
-- Date sort
+
+# 20/06/2023
++ Date sort
++ Category filter
++ Amount sort
+
+# 21/06/2023
+- Date picker
+- Dialog's inputs
 
 # Next:
-- Date picker
-- Category filter
-- Amount sort
-- Buttons icons ?
-
 Task: One size buttons(?)
 Task: Validation forms(edit&create)
 Task: Update style

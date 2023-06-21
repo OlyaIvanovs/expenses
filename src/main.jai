@@ -19,7 +19,7 @@ main :: () {
     
     ok = get_all_transactions_from_db();
     if !ok return;
-    transactions_filtered = transactions;
+    update_filtered_transactions();
     
     ok = get_all_categories_from_db();
     if !ok return;
@@ -37,10 +37,6 @@ main :: () {
 
     screen  = make_rect(0, 0, window_width, window_height);
     Simp.set_render_target(window);
-    
-    color_picker.hsv.hue = 0;
-    color_picker.hsv.saturation = 0;
-    color_picker.hsv.value = 0;
 
     quit : bool;
     while !quit {
@@ -235,6 +231,7 @@ Category :: struct {
     name: string;
     color: string;
 }
+new_category := Category.{name="", color="e3a019"};
 
 rules: [..] Rule;
 Rule :: struct {
@@ -242,6 +239,7 @@ Rule :: struct {
     name: string;
     category_id: int;
 }
+new_rule := Rule.{name="", category_id=0};
 
 transactions_raw : [..]Transaction;
 transactions_filtered : [..]Transaction;
@@ -254,6 +252,7 @@ Transaction :: struct {
     note: string;
     category_id: int;
 }
+new_transaction := Transaction.{details="", note="", category_id=0, amount=0.0, date=""};
 
 Spending :: struct {
     category_id: int;
@@ -295,17 +294,36 @@ Mouse_Button_State :: struct {
     last_down_time: Time;
 }
 
-color_picker: Color_Picker;
 Color_Picker :: struct {
-    hsv: HSV;
+    hsv:  HSV;
     load: bool;
 } 
 
 HSV :: struct {
-    hue: float;
+    hue:        float;
     saturation: float;
-    value: float;
+    value:      float;
 }  
+color_picker := Color_Picker.{
+    hsv.hue        = 0,
+    hsv.saturation = 0,
+    hsv.value      = 0,
+};
+
+
+Filter :: struct {
+    transactions_search: string; 
+    category_filter:    int;
+    amount_sort:        int; 
+    date_sort:          int; 
+}
+filter := Filter.{
+    transactions_search = "",
+    category_filter     = -1,
+    amount_sort         = 0,
+    date_sort           = 0,
+};
+    
 
 Time :: #type,isa float64;
 
@@ -331,6 +349,7 @@ ctrl_pressed :: inline () -> bool {
 #import "String";
 #import "Math";
 #import "File";
+#import "Sort";
 #import "Unicode";
 Simp  :: #import "Simp_Ext";
 Input :: #import "Input";

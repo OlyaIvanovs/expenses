@@ -188,7 +188,9 @@ transafrom_transaction_from_db ::(userdata: *void, num_cols: int, col_data: **u8
         transaction.amount, ok = parse_float(*from_c_string(col_data[2]));
         if !ok then log_error("Couldn't parse amount from string");
         transaction.details = copy_temporary_string(from_c_string(col_data[3]));
-        // transaction.note = copy_temporary_string(from_c_string(col_data[4]));
+        if col_data[4] != "" {
+            transaction.note = copy_temporary_string(from_c_string(col_data[4]));
+        }
         if col_data[5] != null transaction.category_id, ok = parse_int(*from_c_string(col_data[5]));
         if !ok then log_error("Couldn't parse category_id from string");
     }
