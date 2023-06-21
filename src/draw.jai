@@ -181,6 +181,7 @@ set_null_state :: () {
     new_transaction = Transaction.{details="", note="", category_id=0, amount=0.0, date=""};
     
     before_category_choose = true; 
+    text_input.text.count = 0;
 }
 
 draw_settings :: (r: Rect) {  
@@ -212,6 +213,14 @@ draw_settings :: (r: Rect) {
         draw_remove_dialog("rule");
     }
     
+    if message.show {
+        if frame_time - message.time_start > 3 {
+            message.show = false;
+        } else { 
+            draw_message_popup();
+        }
+    }
+    
     if update_transactions {
         update_transactions = false;
         update_filtered_transactions();
@@ -219,6 +228,17 @@ draw_settings :: (r: Rect) {
     }
 }
 
+draw_message_popup :: () {
+    if !message.text return; 
+    popup_height := 50 * dpi_scale;
+    min_width := 400 * dpi_scale;
+    width := cast(float) Simp.prepare_text(font, message.text);
+    rect := make_rect((window_width - max(width, min_width))/2, window_height - popup_height, max(width, min_width) + 20 * dpi_scale, popup_height);
+    draw_rect(rect, Colors.MESSAGE_BACKGROUND_ERROR);
+    pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
+    Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+}
+    
 draw_scrollbar :: (wrapper: Rect, content_height: float, ui_id: Ui_Id, parent_ui_id: Ui_Id, scroll_delta: float, to_bottom: bool = false) -> float, bool {
     if content_height <= wrapper.h then return scroll_delta, to_bottom;
     if to_bottom then scroll_delta = content_height - wrapper.h;
@@ -299,8 +319,11 @@ draw_categories :: (r: Rect) {
         icons_rect, rect = cut_right(rect, 20 * dpi_scale);
         color_rect, rect = cut_left(rect, 30 * dpi_scale);
         
+        text_color := Colors.UI_DEFAULT;
+        
         // Show icons on hover
         if is_hovering_over(category_line_id) {
+            text_color = Colors.UI_DIM;
             pen := make_vector2(
                 icons_rect.x + (icons_rect.w - trash_icon_width) / 2, 
                 icons_rect.y + (icons_rect.h - font.character_height) / 2 + 2 * dpi_scale);
@@ -319,7 +342,7 @@ draw_categories :: (r: Rect) {
         }
         
         // Details
-        draw_text_in_rect(rect, category.name);
+        draw_text_in_rect(rect, category.name, text_color);
         
         // Color icon
         color_rect = shrink(color_rect, 10 * dpi_scale);
@@ -345,7 +368,7 @@ draw_rules :: (r: Rect) {
     count := rules.count;
     content_height := rules.count * LINE_HEIGHT;
     
-    rules_rect := draw_title(r, tprint("Rules(%)", count));
+    rules_rect := draw_title(r, tprint("Rules (%)", count));
     add_rule_button, wrapper := cut_bottom(rules_rect, LINE_HEIGHT + padding);
      if wrapper.h > content_height {
         wrapper.y += wrapper.h - content_height;
@@ -374,8 +397,11 @@ draw_rules :: (r: Rect) {
         details_rect, category_rect, icons_rect: Rect;
         icons_rect, rect = cut_right(rect, 30 * dpi_scale);
         
+        text_color := Colors.UI_DEFAULT;
+        
         // Show icons on hover
         if is_hovering_over(rule_line_id) {
+            text_color = Colors.UI_DIM;
             pen := make_vector2(icons_rect.x + (icons_rect.w - trash_icon_width) / 2, 
                     icons_rect.y + (icons_rect.h - font.character_height) / 2 + 2 * dpi_scale);
     
@@ -396,11 +422,11 @@ draw_rules :: (r: Rect) {
         
         // Details
         details_rect, rect = cut_left(rect, 0.5 * line_width);
-        draw_text_in_rect(details_rect, rule.name);
+        draw_text_in_rect(details_rect, rule.name, text_color);
         
         // Category
         category_rect, rect = cut_left(rect, 0.4 * line_width);
-        draw_text_in_rect(category_rect, get_category_name(rule.category_id));
+        draw_text_in_rect(category_rect, get_category_name(rule.category_id), text_color);
     }
     
     pop_scissor();
@@ -454,12 +480,25 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     became_active := maybe_set_hot_or_active(tr_date_id, date_area, .PRESSABLE, true);
     if is_hovering_over(tr_date_id) || ui.active_input == tr_date_id then draw_rect(date_area, Colors.SEARCH_RESULT_INACTIVE );
     
+    // Validate date on enter
     if enter_pressed && ui.last_active_input == tr_date_id && ui.active_input == .none {
         new_date := cast(string) text_input.text;
         ok := date_string_is_valid(new_date);
         if !ok {
-            print("Validation error");
-            new_transaction.date = copy_string(today_to_string());
+            message.show = true;
+            message.text = "Date Validation Error: Please enter the date in the format YYYY/MM/DD.";
+            message.time_start = cast(Time) get_time();
+            if should_edit_transaction {
+                for *t, index : transactions {
+                    if t.id == should_edit_transaction {
+                        new_transaction.date = t.date;                          
+                        break;
+                    }
+                } 
+            }
+            if should_add_transaction || new_transaction.date == "" {
+                new_transaction.date = copy_string(today_to_string());
+            }            
         } else {
             new_transaction.date = copy_string(new_date);   
         }
@@ -476,8 +515,7 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     } else {
         draw_text_in_rect(date_area, new_transaction.date);
     }
-    
-    
+     
     // Transaction's details
     tr_details_id := get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(tr_details_id, details_area, .PRESSABLE, true);
@@ -565,7 +603,6 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
                 new_transaction.category_id = 0; // UNCATEGORISED
             }
         }
-        
         draw_text_in_rect(category_area, get_category_name(new_transaction.category_id));
     }
     
@@ -963,6 +1000,7 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
             if contains_nocase(tr.details, new_rule.name) { 
                 tr.category_id = new_rule.category_id; 
                 add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
+                update_transactions = true;
             }
         }
         text_input.text.count = 0;
@@ -1132,8 +1170,10 @@ draw_transactions :: (r: Rect) {
     
         icons_rect, rect = cut_right(rect, 20 * dpi_scale);
         
+        text_color := Colors.UI_DEFAULT;
         // Show icons on hover
         if is_hovering_over(tr_line_id) {
+            text_color = Colors.UI_DIM;
             trash_icon_width := Simp.prepare_text(font_icons, to_string(*trash_icon_char));
             pen := make_vector2(
                 icons_rect.x + (icons_rect.w - trash_icon_width) / 2, 
@@ -1160,18 +1200,18 @@ draw_transactions :: (r: Rect) {
         
         // Date
         date_rect, rect = cut_left(rect, 150 * dpi_scale);
-        draw_text_in_rect(date_rect, tr.date);
+        draw_text_in_rect(date_rect, tr.date, text_color);
         
         // Category
         category_rect, rect = cut_right(rect, 0.1 * line_width);
-        draw_text_in_rect(category_rect, get_category_name(tr.category_id));
+        draw_text_in_rect(category_rect, get_category_name(tr.category_id), text_color);
         
         // Amount
         amount_rect, rect = cut_right(rect, 0.1 * line_width);
-        draw_text_in_rect(amount_rect, tprint("%", formatFloat(tr.amount, trailing_width=2, zero_removal=.NO)));
+        draw_text_in_rect(amount_rect, tprint("%", formatFloat(tr.amount, trailing_width=2, zero_removal=.NO)), text_color);
         
         // Details
-        draw_text_in_rect(rect, tr.details);
+        draw_text_in_rect(rect, tr.details, text_color);
     }
     
      pop_scissor();
@@ -1335,7 +1375,7 @@ draw_transactions :: (r: Rect) {
             category_line_id := get_ui_id_from_loc_with_index(ui_id, cat_index);
             
             became_active := maybe_set_hot_or_active(category_line_id, rect, .NORMAL);   
-   
+            
             if is_hovering_over(category_line_id) && mouse_pointer_is_within(wrapper) {
                 draw_rect(rect, Colors.BACKGROUND_LIGHT);
                 set_pointer_image(.PRESSABLE);
@@ -1563,7 +1603,6 @@ is_child :: (ui_id: Ui_Id, parent_id: Ui_Id) -> bool {
 is_child_with_index :: (ui_id: Ui_Id, parent_id: Ui_Id) -> bool {
     return ui_id % parent_id == 0;
 }
-
 
 push_scissor :: (rect: Rect) {
     set_scissor(rect);

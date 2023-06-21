@@ -329,7 +329,7 @@ Message :: struct {
     text: string;
     time_start: Time;
 }
-message := Message.{show=false};
+message := Message.{show=false };
     
 Time :: #type,isa float64;
 

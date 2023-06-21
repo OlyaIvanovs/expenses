@@ -130,8 +130,10 @@
 
 # 21/06/2023
 + Enter&validate date
+
 - Error/validate/confirm message
 - Dialog's inputs
+- Domino's 
 
 # Next:
 Task: One size buttons(?)
