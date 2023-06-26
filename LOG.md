@@ -131,6 +131,9 @@
 # 21/06/2023
 + Enter&validate date
 
+# 26/06/2023
+
+
 - Error/validate/confirm message
 - Dialog's inputs
 - Domino's 

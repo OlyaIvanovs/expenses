@@ -162,25 +162,12 @@ convert_to_temporary_glyphs :: (font: *Dynamic_Font, s: string) -> width_in_pixe
     return width_in_pixels;
 }
 
-calculate_length_of_dots :: (font: *Dynamic_Font)  -> width_in_pixels: s64 {
-    prev_glyph: u32 = 0;
-    s := "...";
-    t := s.data;
-    width_in_pixels := 0;
-    while t < s.data + s.count {
-        utf32 := character_utf8_to_utf32(t, s.data + s.count - t);
-        glyph := find_or_create_glyph(font, utf32);
-        width_in_pixels += glyph.advance;
-        t = unicode_next_character(t);
-        prev_glyph = glyph.glyph_index_within_font;
-    }
-    return width_in_pixels;
-}
-
 convert_to_temporary_glyphs_with_max_width :: (font: *Dynamic_Font, s: string, max_width: s64) -> width_in_pixels: s64 {
     font.glyph_conversion_failed = false;
     temporary_array_reset(*font.temporary_glyphs);
-    dots_at_the_end := calculate_length_of_dots(font);
+    dots := 0x2026;
+    dots_glyph := find_or_create_glyph(font, xx dots);
+    dots_at_the_end_width := dots_glyph.advance;
 
     if !s return 0;
 
@@ -199,22 +186,10 @@ convert_to_temporary_glyphs_with_max_width :: (font: *Dynamic_Font, s: string, m
             width_in_pixels += glyph.advance;
             
             // add dots at the end of long string
-            if width_in_pixels + dots_at_the_end >= max_width {
+            if width_in_pixels + dots_at_the_end_width >= max_width {
                 width_in_pixels -= glyph.advance;
-                s1 := "...";
-                t1 := s1.data;
-                while t1 < s1.data + s1.count {
-                    utf32 := character_utf8_to_utf32(t1, s1.data + s1.count - t1);
-                    glyph := find_or_create_glyph(font, utf32);
-            
-                    if glyph {
-                        array_add(*font.temporary_glyphs, glyph);    
-                        width_in_pixels += glyph.advance;
-                    }
-            
-                    t1 = unicode_next_character(t1);
-                    prev_glyph = glyph.glyph_index_within_font;
-                }
+                array_add(*font.temporary_glyphs, dots_glyph);    
+                width_in_pixels += dots_at_the_end_width;
                 return width_in_pixels;
             } 
 

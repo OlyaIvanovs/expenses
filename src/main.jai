@@ -74,7 +74,7 @@ main :: () {
                     if event.key_pressed == 0 continue;
 
                     if event.key_code == .ESCAPE {
-                        quit = true;
+                        set_null_state();
                     }
                     
                     if event.key_code == .ENTER {
@@ -241,9 +241,9 @@ Rule :: struct {
 }
 new_rule := Rule.{name="", category_id=0};
 
-transactions_raw : [..]Transaction;
-transactions_filtered : [..]Transaction;
-transactions : [..]Transaction;
+transactions_raw: [..]Transaction;
+transactions_filtered: [..]Transaction;
+transactions: [..]Transaction;
 Transaction :: struct {
     id: int;
     date: string;
@@ -311,17 +311,17 @@ color_picker := Color_Picker.{
 };
 
 
-Filter :: struct {
-    transactions_search: string; 
-    category_filter:    int;
-    amount_sort:        int; 
-    date_sort:          int; 
-}
-filter := Filter.{
-    transactions_search = "",
-    category_filter     = -1,
-    amount_sort         = 0,
-    date_sort           = 0,
+sort_direction :: enum int {
+    ascending  :: 1;
+    none       :: 0;
+    descending :: -1;
+};
+
+transaction_filter : struct {
+    transactions_search: string  = "";
+    category_filter: int         = -1;
+    amount_sort: sort_direction = .none;
+    date_sort: sort_direction = .none;  
 };
 
 Message :: struct {
@@ -329,7 +329,7 @@ Message :: struct {
     text: string;
     time_start: Time;
 }
-message := Message.{show=false };
+message := Message.{show=false};
     
 Time :: #type,isa float64;
 

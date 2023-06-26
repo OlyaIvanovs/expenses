@@ -1099,14 +1099,14 @@ update_filtered_transactions :: ()  {
     array_reset_keeping_memory(*transactions_filtered);
     for tr: transactions {
         // -1: All categories 
-        if (filter.category_filter == -1 || tr.category_id == filter.category_filter) && 
-            contains_nocase(tr.details, filter.transactions_search) then array_add(*transactions_filtered, tr);
+        if (transaction_filter.category_filter == -1 || tr.category_id == transaction_filter.category_filter) && 
+            contains_nocase(tr.details, transaction_filter.transactions_search) then array_add(*transactions_filtered, tr);
     }
-    if filter.amount_sort != 0 {
-        quick_sort(transactions_filtered, tr => filter.amount_sort * tr.amount);
+    
+    if transaction_filter.amount_sort != .none {
+        quick_sort(transactions_filtered, tr => transaction_filter.amount_sort * tr.amount);
         transactions_scroll_delta = 0;
-    }
-    if filter.date_sort != 0 { 
+    } else if transaction_filter.date_sort != .none { 
         quick_sort(transactions_filtered,  compare_tr_dates);
         transactions_scroll_delta = 0;
     }
@@ -1118,10 +1118,10 @@ update_filtered_transactions :: ()  {
             if it >= b.count return 1;
             
             delta := cast(s64) a[it] - cast(s64) b[it];
-            if delta return filter.date_sort * delta;
+            if delta return xx transaction_filter.date_sort * delta;
         }
     
-        if b.count > a.count return -1 * filter.date_sort;
+        if b.count > a.count return -1 * xx transaction_filter.date_sort;
         return 0;
     }
 }
@@ -1266,10 +1266,11 @@ draw_transactions :: (r: Rect) {
     draw_text_in_rect(date_rect, "Date");
     draw_icon(0xf07d, icon_rect);
     if became_active {
-        if filter.date_sort == {
-            case  0; filter.date_sort = 1;
-            case  1; filter.date_sort = -1;
-            case -1; filter.date_sort = 1;
+        transaction_filter.amount_sort = .none;
+        if transaction_filter.date_sort == {
+            case .none;       transaction_filter.date_sort = .ascending;
+            case .ascending;  transaction_filter.date_sort = .descending;
+            case .descending; transaction_filter.date_sort = .ascending;
         }
         update_transactions = true;
     }
@@ -1288,8 +1289,8 @@ draw_transactions :: (r: Rect) {
         should_show_category_dropdown = false;
     }
     
-    if filter.category_filter > -1 {
-        draw_text_in_rect(category_filter, get_category_name(filter.category_filter));
+    if transaction_filter.category_filter > -1 {
+        draw_text_in_rect(category_filter, get_category_name(transaction_filter.category_filter));
     } else {
         draw_text_in_rect(category_filter, "Category");
     }
@@ -1302,10 +1303,11 @@ draw_transactions :: (r: Rect) {
     draw_text_in_rect(amount_rect, "Amount");
     draw_icon(0xf07d, icon_rect);
     if became_active {
-        if filter.amount_sort == {
-            case  0; filter.amount_sort = 1;
-            case  1; filter.amount_sort = -1;
-            case -1; filter.amount_sort = 1;
+        transaction_filter.date_sort = .none;
+        if transaction_filter.amount_sort == {
+            case .none;       transaction_filter.amount_sort = .ascending;
+            case .ascending;  transaction_filter.amount_sort = .descending;
+            case .descending; transaction_filter.amount_sort = .ascending;
         }
         update_transactions = true;
     }
@@ -1325,14 +1327,14 @@ draw_transactions :: (r: Rect) {
     if ui.active_input == tr_filter_id {
         draw_text_input(*text_input, input_rect, tr_filter_id, Colors.UI_DIM);
         if key_pressed {
-            filter.transactions_search = copy_string(cast(string) text_input.text);
+            transaction_filter.transactions_search = copy_string(cast(string) text_input.text);
             update_transactions = true;
         } 
     } else {
         rect := snap_to_grid(input_rect);
         draw_rect(rect, Colors.BACKGROUND);
         draw_line_separator(rect);
-        draw_text_in_rect(rect, filter.transactions_search, Colors.UI_DIM);
+        draw_text_in_rect(rect, transaction_filter.transactions_search, Colors.UI_DIM);
     }
     
     if enter_pressed then ui.active_input = .none;
@@ -1370,7 +1372,7 @@ draw_transactions :: (r: Rect) {
         categories_show := categories;
         array_add(*categories_show, .{id=-1, name="All categories"});
         for *category, cat_index: categories_show {
-            if category.id == filter.category_filter continue;
+            if category.id == transaction_filter.category_filter continue;
             rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
             category_line_id := get_ui_id_from_loc_with_index(ui_id, cat_index);
             
@@ -1382,7 +1384,7 @@ draw_transactions :: (r: Rect) {
             }
                    
             if became_active && mouse_pointer_is_within(wrapper) {  
-                filter.category_filter = category.id;
+                transaction_filter.category_filter = category.id;
                 dropdown_scroll_delta = 0;
                 update_transactions = true;
             }
@@ -1527,7 +1529,7 @@ draw_button :: (rect : Rect, text: string) {
     draw_rect(rect, Colors.BACKGROUND_BRIGHT);
     text_width := cast(float) Simp.prepare_text(font, text);
     text_pen := Vector2.{
-        rect.x + (rect.w - text_width)/2 * dpi_scale, 
+        rect.x + (rect.w - text_width)/2, 
         rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale};
     Simp.draw_prepared_text(font, xx text_pen.x, xx text_pen.y, Colors.UI_DEFAULT);
 }

@@ -46,8 +46,8 @@ get_daily_spendings :: () -> Daily_Spendings, bool {
 
 get_all_categories_from_db :: () -> bool {
     errmsg : *u8;
-    sql_select :: "SELECT * FROM Categories;";
-    result := sqlite3_exec(db, sql_select, transform_category_from_db, null, *errmsg);
+    query :: "SELECT * FROM Categories;";
+    result := sqlite3_exec(db, query, load_category_from_db, null, *errmsg);
     if result != SQLITE_OK {
         log_error("ERROR: %\n",from_c_string(errmsg));
         return false;
@@ -57,8 +57,9 @@ get_all_categories_from_db :: () -> bool {
 
 get_all_rules_from_db :: () -> bool {
     errmsg : *u8;
-    sql_select :: "SELECT * FROM Rules;";
-    result := sqlite3_exec(db, sql_select, transform_rule_from_db, null, *errmsg);
+    query :: "SELECT * FROM Rules;";
+    result := sqlite3_exec(db, query,
+    load_rule_from_db, null, *errmsg);
     if result != SQLITE_OK {
         log_error("ERROR: %\n",from_c_string(errmsg));
         return false;
@@ -68,8 +69,8 @@ get_all_rules_from_db :: () -> bool {
 
 get_all_transactions_from_db :: () -> bool {
     errmsg : *u8;
-    sql_select_tr :: "SELECT * FROM Transactions;";
-    result := sqlite3_exec(db, sql_select_tr, transafrom_transaction_from_db, null, *errmsg);
+    query :: "SELECT * FROM Transactions;";
+    result := sqlite3_exec(db, query, load_transaction_from_db, null, *errmsg);
     if result != SQLITE_OK {
         log_error("ERROR: %\n",from_c_string(errmsg));
         return false;
@@ -78,33 +79,33 @@ get_all_transactions_from_db :: () -> bool {
 }
 
 delete_category_from_db :: (id: int) -> bool{
-    sql_str :: "DELETE FROM Categories WHERE id = %;";
-    return execute_simple_db_query(tprint(sql_str, id));
+    query :: "DELETE FROM Categories WHERE id = %;";
+    return execute_simple_db_query(tprint(query, id));
 }
 
 delete_transaction_from_db :: (id: int) -> bool{
-    sql_str :: "DELETE FROM Transactions WHERE id = %;";
-    return execute_simple_db_query(tprint(sql_str, id));
+    query :: "DELETE FROM Transactions WHERE id = %;";
+    return execute_simple_db_query(tprint(query, id));
 }
 
 delete_rule_from_db :: (id: int) -> bool{
-    sql_str :: "DELETE FROM Rules WHERE id = %;";
-    return execute_simple_db_query(tprint(sql_str, id));
+    query :: "DELETE FROM Rules WHERE id = %;";
+    return execute_simple_db_query(tprint(query, id));
 }
 
 delete_all_transaction_from_db :: () -> bool{
-    sql_str :: "DELETE FROM Transactions;";
-    return execute_simple_db_query(sql_str);
+    query :: "DELETE FROM Transactions;";
+    return execute_simple_db_query(query);
 }
 
 add_category_to_db :: (id: int, name: string, color: string) -> bool {
-    sql_str :: "INSERT OR REPLACE INTO Categories(id, name, color) VALUES(%, '%', '%');";
-    return execute_simple_db_query(tprint(sql_str, id, name, color));
+    query :: "INSERT OR REPLACE INTO Categories(id, name, color) VALUES(%, '%', '%');";
+    return execute_simple_db_query(tprint(query, id, name, color));
 }
 
 add_category_to_db :: (name: string, color: string) -> int, bool {
-    sql_str :: "INSERT OR REPLACE INTO Categories(name, color) VALUES('%', '%');";
-    ok := execute_simple_db_query(tprint(sql_str, name, color));
+    query :: "INSERT OR REPLACE INTO Categories(name, color) VALUES('%', '%');";
+    ok := execute_simple_db_query(tprint(query, name, color));
     if !ok return 0, false;
     id : int;
     id, ok = get_last_id();
@@ -125,7 +126,7 @@ get_last_id :: () -> (int, bool) {
     return last_id, true;
 }
 
-get_last_id_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+get_last_id_from_db :: (userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
     new_context: Context;
     push_context new_context {
         assert(num_cols == 1);
@@ -139,23 +140,23 @@ get_last_id_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names
 
 
 add_rule_to_db :: (id: int, name: string, category_id: int) -> bool {
-    sql_str :: "INSERT OR REPLACE INTO Rules(id, name, category_id) VALUES(%, '%', %);";
-    return execute_simple_db_query(tprint(sql_str, id, name, category_id));
+    query :: "INSERT OR REPLACE INTO Rules(id, name, category_id) VALUES(%, '%', %);";
+    return execute_simple_db_query(tprint(query, id, name, category_id));
 }
 
 add_rule_to_db :: ( name: string, category_id: int) -> bool {
-    sql_str :: "INSERT OR REPLACE INTO Rules(name, category_id) VALUES('%', %);";
-    return execute_simple_db_query(tprint(sql_str, name, category_id));
+    query :: "INSERT OR REPLACE INTO Rules(name, category_id) VALUES('%', %);";
+    return execute_simple_db_query(tprint(query, name, category_id));
 }
 
 add_transaction_to_db :: (id: int, date: string, amount: float64, details: string, note: string, category_id: int) -> bool {
-    sql_str :: "INSERT OR REPLACE INTO Transactions(id, transaction_date, amount, details, note, category_id) VALUES(%, '%', %, '%', '%', %);";
-    return execute_simple_db_query(tprint(sql_str, id, date, amount, details, note, category_id));
+    query :: "INSERT OR REPLACE INTO Transactions(id, transaction_date, amount, details, note, category_id) VALUES(%, '%', %, '%', '%', %);";
+    return execute_simple_db_query(tprint(query, id, date, amount, details, note, category_id));
 }
 
 add_transaction_to_db :: (date: string, amount: float64, details: string, note: string, category_id: int) -> int, bool {
-    sql_str :: "INSERT OR REPLACE INTO Transactions(transaction_date, amount, details, note, category_id) VALUES('%', %, '%', '%', %);";
-    ok := execute_simple_db_query(tprint(sql_str, date, amount, details, note, category_id));
+    query :: "INSERT OR REPLACE INTO Transactions(transaction_date, amount, details, note, category_id) VALUES('%', %, '%', '%', %);";
+    ok := execute_simple_db_query(tprint(query, date, amount, details, note, category_id));
     if !ok return 0, false;
     id : int;
     id, ok = get_last_id();
@@ -175,7 +176,7 @@ execute_simple_db_query :: (select: string) -> bool{
     return true;
 }
 
-transafrom_transaction_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+load_transaction_from_db :: (userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
     new_context: Context;
     push_context new_context {
         assert(num_cols == 6);
@@ -197,7 +198,7 @@ transafrom_transaction_from_db ::(userdata: *void, num_cols: int, col_data: **u8
     return SQLITE_OK;
 }
 
-transform_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+load_category_from_db :: (userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
     new_context: Context;
     push_context new_context {
         assert(num_cols == 3);
@@ -211,7 +212,7 @@ transform_category_from_db ::(userdata: *void, num_cols: int, col_data: **u8, co
     return SQLITE_OK;
 }
 
-transform_rule_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+load_rule_from_db :: (userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
     new_context: Context;
     push_context new_context {
         assert(num_cols == 3);
@@ -230,7 +231,7 @@ transform_rule_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_na
 
 #scope_file
 
-collect_spendings_from_db ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+collect_spendings_from_db :: (userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
     new_context: Context;
     push_context new_context {
         assert(num_cols == 2);
