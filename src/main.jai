@@ -14,15 +14,19 @@ main :: () {
     ok := initialise_db();
     if !ok return;
     
-    daily_spendings, ok = get_daily_spendings();
+    ok = get_all_categories_from_db();
     if !ok return;
+    
+    for categories table_set(*show_categories_table, it.id, false);
+    
+    graph_details.year = to_calendar(current_time_consensus()).year;
+    daily_spendings, ok = get_daily_spendings(0);
+    if !ok return;
+    get_max_spending();
     
     ok = get_all_transactions_from_db();
     if !ok return;
     update_filtered_transactions();
-    
-    ok = get_all_categories_from_db();
-    if !ok return;
     
     ok = get_all_rules_from_db();
     if !ok return;
@@ -100,23 +104,6 @@ main :: () {
     }
 }
 
-
-// print_db_documents ::(userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
-//     new_context: Context;
-//     push_context new_context {
-//         columns: []*u8 = ---;
-//         columns.count = num_cols;
-//         columns.data = col_data;
-
-//         for columns {
-//             s := from_c_string(it);
-//             print("% ", s);
-//         }
-//         print("\n");
-//     }
-//     return SQLITE_OK;
-// }
-
 init_fonts :: () {
     font = Simp.get_font_at_size("fonts", "FiraCode-Retina.ttf", cast(int) (font_size * dpi_scale));
     assert(font != null, "Couldn't init main text font\n");
@@ -189,6 +176,8 @@ panic :: (format_string: string, args: .. Any, exit_code : s32 = 1) {
     exit(exit_code);
 } @PrintLike
 
+
+show_categories_table: Table(int, bool);
 daily_spendings: Daily_Spendings;
 
 window_width : s32 = 1920;
@@ -218,7 +207,7 @@ font_icons_size := 16;
 
 Mods :: Input.Event.Modifier_Flags;
 
-program_state: Program_State = .settings;
+program_state: Program_State = .dashboard;
 Program_State :: enum {
     dashboard;
     something_else;
@@ -232,6 +221,7 @@ Category :: struct {
     color: string;
 }
 new_category := Category.{name="", color="e3a019"};
+show_all_categories_on_graph := 1;
 
 rules: [..] Rule;
 Rule :: struct {
@@ -257,6 +247,8 @@ new_transaction := Transaction.{details="", note="", category_id=0, amount=0.0, 
 Spending :: struct {
     category_id: int;
     total_spent: float64;
+    color: string;
+    category: string;
 }
 
 screen: Rect;  // contains the current working area rect for convenience
@@ -324,6 +316,10 @@ transaction_filter : struct {
     date_sort: sort_direction = .none;  
 };
 
+graph_details : struct {
+    year: int;
+};
+
 Message :: struct {
     show: bool;
     text: string;
@@ -357,6 +353,7 @@ ctrl_pressed :: inline () -> bool {
 #import "File";
 #import "Sort";
 #import "Unicode";
+#import "Hash_Table";
 Simp  :: #import "Simp_Ext";
 Input :: #import "Input";
 Clipboard :: #import "Clipboard";

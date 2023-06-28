@@ -132,7 +132,24 @@
 + Enter&validate date
 
 # 26/06/2023
+- Pollishing
+- Dashboard tab: show categories + tick
+- Dashboard tab: add a graph
 
+# 27/06/2023p
++ Polishing
+- Weekly column chart 
+
+# 28/06/2023
+- Weekly column chart 
+
+
+Graph:
+- max spending for category
+- show list of categories on click
+- color picker bug: dark shade
+- do not save category without name
+- show date on week number hover 
 
 - Error/validate/confirm message
 - Dialog's inputs
@@ -145,6 +162,3 @@ Task: Update style
 
 Graphs:
 Pie chart
-Column chart(by month)
-Column chart(by month/in 2 years)
-Stacked area chart

@@ -78,54 +78,88 @@ get_upload_file_name :: () -> string /* temp */, success: bool {
     return "", false;
 }
 
-upload_transactions_from_file :: (file_name: string) -> bool {
-    contents, success := read_entire_file(file_name);
-    assert(success);
-
-    csv_file := read_csv(file_name, ",", 6, num_cols = 7);
-    ok: bool;
-    for row : csv_file.rows {
-        t := array_add(*transactions_raw);
-        t.date = row.fields[1];
-        t.amount, ok = parse_float64(*row.fields[6]);
-        if !ok then log_error("Couldn't parse amount as float: %\n", row.fields[6]);
-        t.details = row.fields[5]; 
-        for rule: rules {
-            if contains_nocase(t.details, rule.name) then t.category_id = rule.category_id; 
-        } 
-    }
-
-    query_builder: String_Builder;
-    init_string_builder(*query_builder);
-    print_to_builder(*query_builder, "BEGIN TRANSACTION;\n");
-    for t : transactions_raw {
-        if t.amount < 0 then continue; // do not include income
-        insert :: #string QUERY
-    INSERT INTO Transactions (transaction_date, amount, details, category_id) VALUES ("%", %, %, %);
-    QUERY;
-        print_to_builder(*query_builder, insert, t.date, t.amount, t.details, t.category_id);
-    }
-    print_to_builder(*query_builder, "COMMIT;\n");
-
-    query := builder_to_string(*query_builder);
-    defer free(query);
-    
-    errmsg : *u8;
-    result := sqlite3_exec(db, to_c_string(query), null, null, *errmsg);
-    if result != SQLITE_OK {
-        log_error("ERROR: %\n",from_c_string(errmsg));
-        return false;
-    }
-    
-    return true;
-}
-
 get_category_name :: (category_id: int) -> string{
     if category_id == -1 then return "All categories";
     for categories if it.id == category_id { 
         return  it.name;
     }
     return "UNCATEGORISED";
+}
+
+update_filtered_transactions :: ()  {
+    array_reset_keeping_memory(*transactions_filtered);
+    for tr: transactions {
+        // -1: All categories 
+        if (transaction_filter.category_filter == -1 || tr.category_id == transaction_filter.category_filter) && 
+            contains_nocase(tr.details, transaction_filter.transactions_search) then array_add(*transactions_filtered, tr);
+    }
+    
+    if transaction_filter.amount_sort != .none {
+        quick_sort(transactions_filtered, tr => transaction_filter.amount_sort * tr.amount);
+        transactions_scroll_delta = 0;
+    } else if transaction_filter.date_sort != .none { 
+        quick_sort(transactions_filtered,  compare_tr_dates);
+        transactions_scroll_delta = 0;
+    }
+        
+    compare_tr_dates :: (tr1: Transaction, tr2: Transaction) -> s64 {
+        a := tr1.date; 
+        b := tr2.date; 
+        for 0..a.count-1 {
+            if it >= b.count return 1;
+            
+            delta := cast(s64) a[it] - cast(s64) b[it];
+            if delta return xx transaction_filter.date_sort * delta;
+        }
+    
+        if b.count > a.count return -1 * xx transaction_filter.date_sort;
+        return 0;
+    }
+}
+
+get_max_spending :: () {
+    max_total: float64;
+    for i : 0 .. daily_spendings.week_indices.count - 2 {
+        start := daily_spendings.week_indices[i];
+        end   := daily_spendings.week_indices[i + 1];
+        num_spendings := end - start;
+        week_spendings := array_view(daily_spendings.spendings, start, num_spendings);
+        weekly_total:float64 = 0;
+        for spending : week_spendings {
+            weekly_total += spending.total_spent;
+        }
+        if weekly_total > max_total then max_total = weekly_total;
+    }
+    daily_spendings.max_spending = max_total;
+}
+
+update_spendings_data :: () {
+    using daily_spendings;
+    array_reset_keeping_memory(*daily_spendings.spendings);
+    array_reset_keeping_memory(*daily_spendings.week_indices);
+    ok: bool;
+    daily_spendings, ok = get_daily_spendings(to_calendar(current_time_consensus()).year - graph_details.year);
+    if !ok return;
+    get_max_spending();
+}
+
+update_spendings_category :: () {
+    for i : 0 .. daily_spendings.week_indices.count - 2 {
+        start := daily_spendings.week_indices[i];
+        end   := daily_spendings.week_indices[i + 1];
+        num_spendings := end - start;
+        week_spendings := array_view(daily_spendings.spendings, start, num_spendings);
+
+        for *spending, i : week_spendings {
+            for category: categories {
+                if category.id == spending.category_id {
+                    spending.color = category.color;
+                    spending.category = category.name;
+                    break;
+                }
+            }  
+        }
+    }
 }
 
 // date format yyyy/mm/dd

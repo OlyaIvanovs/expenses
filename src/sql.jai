@@ -17,14 +17,14 @@ initialise_db :: () -> bool {
 }
 
 
-get_daily_spendings :: () -> Daily_Spendings, bool {
+get_daily_spendings :: (year: int) -> Daily_Spendings, bool {
     spending_query :: #string END
         SELECT category_id, SUM(amount)
         FROM Transactions
         WHERE
             amount >= 0 AND
-            transaction_date >= strftime('%%Y/%%m/%%d', date('now','start of year', 'weekday 1', '+%1 days')) AND
-            transaction_date <  strftime('%%Y/%%m/%%d', date('now','start of year', 'weekday 1', '+%1 days', '+7 days'))
+            transaction_date >= strftime('%%Y/%%m/%%d', date('now', '-%2 years', 'start of year', 'weekday 1', '+%1 days')) AND
+            transaction_date <  strftime('%%Y/%%m/%%d', date('now', '-%2 years', 'start of year' ,'weekday 1', '+%1 days', '+7 days'))
         GROUP BY category_id;
     END
     errmsg: *u8;
@@ -32,7 +32,7 @@ get_daily_spendings :: () -> Daily_Spendings, bool {
 
     for week_index : 0 .. 51 {
         array_add(*week_indices, spendings.count);
-        week_query := to_c_string(tprint(spending_query, week_index * 7));
+        week_query := to_c_string(tprint(spending_query, week_index * 7, tprint("%",year)));
         defer free(week_query);
         result := sqlite3_exec(db, week_query, collect_spendings_from_db, *daily_spendings, *errmsg);
         if result != SQLITE_OK {
@@ -227,6 +227,47 @@ load_rule_from_db :: (userdata: *void, num_cols: int, col_data: **u8, col_names:
     return SQLITE_OK;
 }
 
+upload_transactions_from_file :: (file_name: string) -> bool {
+    contents, success := read_entire_file(file_name);
+    assert(success);
+
+    csv_file := read_csv(file_name, ",", 6, num_cols = 7);
+    ok: bool;
+    for row : csv_file.rows {
+        t := array_add(*transactions_raw);
+        t.date = row.fields[1];
+        t.amount, ok = parse_float64(*row.fields[6]);
+        if !ok then log_error("Couldn't parse amount as float: %\n", row.fields[6]);
+        t.details = row.fields[5]; 
+        for rule: rules {
+            if contains_nocase(t.details, rule.name) then t.category_id = rule.category_id; 
+        } 
+    }
+
+    query_builder: String_Builder;
+    init_string_builder(*query_builder);
+    print_to_builder(*query_builder, "BEGIN TRANSACTION;\n");
+    for t : transactions_raw {
+        if t.amount < 0 then continue; // do not include income
+        insert :: #string QUERY
+    INSERT INTO Transactions (transaction_date, amount, details, category_id) VALUES ("%", %, %, %);
+    QUERY;
+        print_to_builder(*query_builder, insert, t.date, t.amount, t.details, t.category_id);
+    }
+    print_to_builder(*query_builder, "COMMIT;\n");
+
+    query := builder_to_string(*query_builder);
+    defer free(query);
+    
+    errmsg : *u8;
+    result := sqlite3_exec(db, to_c_string(query), null, null, *errmsg);
+    if result != SQLITE_OK {
+        log_error("ERROR: %\n",from_c_string(errmsg));
+        return false;
+    }
+    
+    return true;
+}
 
 
 #scope_file
@@ -244,6 +285,14 @@ collect_spendings_from_db :: (userdata: *void, num_cols: int, col_data: **u8, co
         if !ok then log_error("Couldn't parse id from string");
         spending.total_spent, ok = parse_float64(*from_c_string(col_data[1]));
         if !ok then log_error("Couldn't parse amount from string");
+        for category: categories {
+            if category.id == spending.category_id {
+                spending.color = category.color;
+                spending.category = category.name;
+                break;
+            }
+        }
+        if spending.color == "" then spending.color = "110000";
     }
     return SQLITE_OK;
 }
@@ -254,4 +303,5 @@ collect_spendings_from_db :: (userdata: *void, num_cols: int, col_data: **u8, co
 Daily_Spendings :: struct {
     spendings: [..] Spending;
     week_indices: [..] s64;
+    max_spending: float64;
 }
