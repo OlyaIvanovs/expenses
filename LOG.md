@@ -143,10 +143,12 @@
 # 28/06/2023
 - Weekly column chart 
 
+# 29/06/2023
+
 
 Graph:
 - max spending for category
-- show list of categories on click
+- show list of transactions on click: show all transactions + filter them 
 - color picker bug: dark shade
 - do not save category without name
 - show date on week number hover 
@@ -159,6 +161,3 @@ Graph:
 Task: One size buttons(?)
 Task: Validation forms(edit&create)
 Task: Update style
-
-Graphs:
-Pie chart

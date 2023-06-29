@@ -78,6 +78,27 @@ get_all_transactions_from_db :: () -> bool {
     return true;
 }
 
+get_filtered_transactions_from_db :: (category_id: int, year: int, days: int) -> bool {
+    errmsg : *u8;
+    query_str :: #string END
+        SELECT *
+        FROM Transactions
+        WHERE
+            amount >= 0 AND
+            category_id == '%1' AND
+            transaction_date >= strftime('%%Y/%%m/%%d', date('now', '-%2 years', 'start of year', 'weekday 1', '+%3 days')) AND
+            transaction_date <  strftime('%%Y/%%m/%%d', date('now', '-%2 years', 'start of year', 'weekday 1', '+%3 days', '+7 days'))
+    END;
+    print(query_str, tprint("%", category_id), year, days);
+    query := to_c_string(tprint(query_str, tprint("%", category_id), year, days));
+    result := sqlite3_exec(db, query, load_dashboard_transaction_from_db, null, *errmsg); /// !!!!!!!!!!!
+    if result != SQLITE_OK {
+        log_error("ERROR: %\n",from_c_string(errmsg));
+        return false;
+    }
+    return true;
+}
+
 delete_category_from_db :: (id: int) -> bool{
     query :: "DELETE FROM Categories WHERE id = %;";
     return execute_simple_db_query(tprint(query, id));
@@ -183,6 +204,28 @@ load_transaction_from_db :: (userdata: *void, num_cols: int, col_data: **u8, col
         ok: bool;
 
         transaction := array_add(*transactions);
+        transaction.id, ok = parse_int(*from_c_string(col_data[0]));
+        if !ok then log_error("Couldn't parse id from string");
+        if col_data[1] != null then transaction.date = copy_temporary_string(from_c_string(col_data[1]));
+        transaction.amount, ok = parse_float(*from_c_string(col_data[2]));
+        if !ok then log_error("Couldn't parse amount from string");
+        transaction.details = copy_temporary_string(from_c_string(col_data[3]));
+        if col_data[4] != "" {
+            transaction.note = copy_temporary_string(from_c_string(col_data[4]));
+        }
+        if col_data[5] != null transaction.category_id, ok = parse_int(*from_c_string(col_data[5]));
+        if !ok then log_error("Couldn't parse category_id from string");
+    }
+    return SQLITE_OK;
+}
+
+load_dashboard_transaction_from_db :: (userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
+    new_context: Context;
+    push_context new_context {
+        assert(num_cols == 6);
+        ok: bool;
+
+        transaction := array_add(*dashboard_transactions);
         transaction.id, ok = parse_int(*from_c_string(col_data[0]));
         if !ok then log_error("Couldn't parse id from string");
         if col_data[1] != null then transaction.date = copy_temporary_string(from_c_string(col_data[1]));

@@ -20,6 +20,8 @@ main :: () {
     for categories table_set(*show_categories_table, it.id, false);
     
     graph_details.year = to_calendar(current_time_consensus()).year;
+    graph_details.category_id = -1;
+    
     daily_spendings, ok = get_daily_spendings(0);
     if !ok return;
     get_max_spending();
@@ -27,6 +29,7 @@ main :: () {
     ok = get_all_transactions_from_db();
     if !ok return;
     update_filtered_transactions();
+    update_transactions_on_dashboard();
     
     ok = get_all_rules_from_db();
     if !ok return;
@@ -176,7 +179,7 @@ panic :: (format_string: string, args: .. Any, exit_code : s32 = 1) {
     exit(exit_code);
 } @PrintLike
 
-
+CIRCLE_RESOLUTION :: 100;
 show_categories_table: Table(int, bool);
 daily_spendings: Daily_Spendings;
 
@@ -233,6 +236,7 @@ new_rule := Rule.{name="", category_id=0};
 
 transactions_raw: [..]Transaction;
 transactions_filtered: [..]Transaction;
+dashboard_transactions: [..]Transaction;
 transactions: [..]Transaction;
 Transaction :: struct {
     id: int;
@@ -318,6 +322,8 @@ transaction_filter : struct {
 
 graph_details : struct {
     year: int;
+    category_id: int;
+    active_transaction: int;
 };
 
 Message :: struct {

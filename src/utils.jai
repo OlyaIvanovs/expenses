@@ -117,6 +117,21 @@ update_filtered_transactions :: ()  {
     }
 }
 
+update_transactions_on_dashboard :: ()  {
+    array_reset_keeping_memory(*dashboard_transactions);
+    start_date := tprint("%/01/01", graph_details.year); 
+    end_date := tprint("%/01/01", graph_details.year+1); 
+    for tr: transactions {
+        if tr.amount <= 0 continue;
+        show_on_graph, found := table_find(*show_categories_table, tr.category_id);
+        if !show_on_graph && show_all_categories_on_graph != 1 continue;
+        if compare_strings(tr.date, end_date) > 0 || compare_strings(start_date, tr.date) > 0 then continue;
+        if (graph_details.category_id == -1 || tr.category_id == graph_details.category_id) { 
+            array_add(*dashboard_transactions, tr);
+        }
+    }
+}
+
 get_max_spending :: () {
     max_total: float64;
     for i : 0 .. daily_spendings.week_indices.count - 2 {
@@ -194,6 +209,21 @@ today_to_string :: () -> string {
         cal.year, 
         formatInt(cal.month_starting_at_0+1, minimum_digits=2), 
         formatInt(cal.day_of_month_starting_at_0+1, minimum_digits=2));
+}
+
+// Find a way to show week date
+get_week_name :: (week_num: int, year: int, amount: float64) -> string {
+    return tprint("%th week of year % - %", week_num+1, year, formatFloat(amount, trailing_width=2, zero_removal=.NO));
+}
+
+immediate_circle :: (center: Vector2, radius: float, color: Vector4, start: int, end: int) {
+    STEP_ANGLE :: 2*PI/CIRCLE_RESOLUTION;
+    for start..end {
+        p0 := center;
+        p1 := center + Vector2.{ x = cos(STEP_ANGLE*it), y = sin(STEP_ANGLE*it)} * radius;
+        p2 := center + Vector2.{ x = cos(STEP_ANGLE*(it+1)), y = sin(STEP_ANGLE*(it+1))} * radius;
+        Simp.immediate_triangle(make_vector3(p0,0), make_vector3(p1, 0), make_vector3(p2, 0), color, color, color);
+    }
 }
 
 

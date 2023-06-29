@@ -90,6 +90,7 @@ draw_one_frame :: () {
 // Scroll global data
 transactions_scroll_delta :float = 0;
 transactions_scroll_delta_to_bottom := false;
+dashboard_transactions_scroll_delta : float = 0;
 dropdown_scroll_delta :float = 0;
 categories_scroll_delta :float = 0;
 categories_scroll_delta_to_bottom := false;
@@ -113,7 +114,7 @@ should_remove_rule := -1;
 
 before_category_choose := true; 
 update_transactions := false;
-update_spendings := false;
+update_dashboard_transactions := true;
 
 set_null_state :: () {
     should_add_category = false;
@@ -145,14 +146,15 @@ set_null_state :: () {
 draw_dashboard :: (main_area: Rect) {
     choose_graph_area: Rect;
     categories_rect, main_area := cut_left(main_area, 300 * dpi_scale);
-    categories_rect, choose_graph_area = cut_top(categories_rect, 0.6 * categories_rect.h);
+    categories_rect, choose_graph_area = cut_top(categories_rect, 0.7 * categories_rect.h);
     
     draw_dashboard_categories(categories_rect);
     draw_graph_area(main_area);
     
-    if update_spendings {
-        update_spendings = false;
+    if update_dashboard_transactions {
+        update_dashboard_transactions = false;
         update_spendings_data();
+        update_transactions_on_dashboard();
         redraw_requested = true;
     }
 }
@@ -233,6 +235,8 @@ draw_dashboard_categories :: (r: Rect) {
        
         // Choose category to show on the graph
         if became_active { 
+            update_dashboard_transactions = true;
+            graph_details.active_transaction = 0;
             if show_on_graph && category.id != -1 {
                 table_set(*show_categories_table, category.id, false);
                 show_all_categories_on_graph -= 1;
@@ -274,15 +278,22 @@ draw_dashboard_categories :: (r: Rect) {
 }
 
 draw_graph_area :: (r: Rect) {
+    draw_bar_info: bool;
+    amount, category_name: string;
+   
     ui_id := get_ui_id_from_loc();
     maybe_set_hot_or_active(ui_id, r, .NORMAL, false);
-    
-    draw_bar_info := false;
-    
+     
     rect := r;
     graph_rect := draw_title(rect, tprint("Weekly Expenses For Year %", graph_details.year));
     draw_rect(graph_rect, Colors.BACKGROUND_HIGHLIGHT);
-    instrument_bar: Rect;
+    
+    instrument_bar, info_rect, category_rect, amount_rect, transactions_rect, pie_chart_rect: Rect;
+    transactions_rect, graph_rect = cut_right(graph_rect, graph_rect.w * 0.2);
+    draw_rect(transactions_rect, Colors.BACKGROUND_LIGHT);
+    transactions_rect, pie_chart_rect = cut_top(transactions_rect, 0.7 * transactions_rect.h);
+    draw_dashboard_transactions(transactions_rect);
+    
     instrument_bar, graph_rect = cut_top(graph_rect, LINE_HEIGHT);
     instrument_bar = shrink_x(instrument_bar, instrument_bar.w * 0.02);
     year_dropdown_w := cut_left(instrument_bar, 80 * dpi_scale);
@@ -291,7 +302,6 @@ draw_graph_area :: (r: Rect) {
     year_dropdown, icon_rect := cut_left(year_dropdown_w, 60 * dpi_scale); 
     draw_icon(0xf107, icon_rect);
     if ui.active_input == year_dropdown_id {
-        // Draw dropdown
         should_show_graph_year_dropdown = true;
         if enter_pressed then ui.active_input = .none;
     } else {
@@ -300,9 +310,10 @@ draw_graph_area :: (r: Rect) {
     
     draw_text_in_rect(year_dropdown, tprint("%", graph_details.year));
     
+    week_desc_rect := make_rect(graph_rect.x, graph_rect.y - 30 * dpi_scale, graph_rect.w, 30 * dpi_scale);
+    
     bar_rect := cut_left(graph_rect, (graph_rect.w / 52) - padding);
-    info_rect, category_rect, amount_rect : Rect;
-    amount, category_name: string;
+    
     using daily_spendings;
     for i : 0 .. week_indices.count - 2 {
         start := week_indices[i];
@@ -310,17 +321,31 @@ draw_graph_area :: (r: Rect) {
         num_spendings := end - start;
         week_spendings := array_view(spendings, start, num_spendings);
         weekly_total: float64;
-        for spending : week_spendings {
-            weekly_total += spending.total_spent;
-        }
+        for spending : week_spendings weekly_total += spending.total_spent;
 
         // base rect
-        name_rect, week_rect := cut_bottom(bar_rect, 30 * dpi_scale);
-        week_rect.x += i * (bar_rect.w + padding);
-        name_rect.x = week_rect.x;
-        week_rect.h = xx (week_rect.h * (weekly_total / max_spending));
-        draw_text_in_rect(name_rect, tprint("%", i+1), centered=true);
-
+        week_rect := bar_rect;
+        if bar_rect.w > 25 * dpi_scale {
+            week_name_rect: Rect;
+            week_name_rect, week_rect = cut_bottom(bar_rect, 30 * dpi_scale);
+            week_rect.x += i * (bar_rect.w + padding);
+            week_name_rect.x = week_rect.x;
+            week_rect.h = xx (week_rect.h * (weekly_total / max_spending));
+            draw_text_in_rect(week_name_rect, tprint("%", i+1), centered=true);
+            if mouse_pointer_is_within(week_name_rect) ||  mouse_pointer_is_within(week_rect) {
+                draw_rect(week_name_rect, Colors.BACKGROUND_HIGH_TRANSPARENT);
+                draw_text_in_rect(week_desc_rect, get_week_name(i, graph_details.year, weekly_total));
+                draw_pie_chart(pie_chart_rect, week_spendings, weekly_total);
+            }
+        } else {
+            week_rect.x += i * (bar_rect.w + padding);
+            week_rect.h = xx (week_rect.h * (weekly_total / max_spending));
+            if mouse_pointer_is_within(week_rect) {
+                draw_text_in_rect(week_desc_rect, get_week_name(i, graph_details.year, weekly_total));
+                draw_pie_chart(pie_chart_rect, week_spendings, weekly_total);
+            }
+        }
+        
         // draw categories
         y: float32;
         for spending, j : week_spendings {
@@ -337,8 +362,15 @@ draw_graph_area :: (r: Rect) {
             if !ok then color = Colors.RED;
             draw_rect(rect, color);
             
-            bar_id := get_ui_id_from_loc_with_index(ui_id, (j+1)*(i+1)*week_indices.count);
-            maybe_set_hot_or_active(bar_id, rect, .PRESSABLE);
+            bar_id := get_ui_id_from_loc_with_index(ui_id, (j+week_indices.count)*(i+1));
+            became_active := maybe_set_hot_or_active(bar_id, rect, .PRESSABLE);
+            
+            if became_active {
+                array_reset_keeping_memory(*dashboard_transactions);
+                get_filtered_transactions_from_db(
+                    spending.category_id, to_calendar(current_time_consensus()).year-graph_details.year, i*7);
+            }
+            
             if is_hovering_over(bar_id) {
                 draw_rect(rect, Colors.BACKGROUND_HIGH_TRANSPARENT);
                 info_rect = make_rect(mouse.pointer.x, mouse.pointer.y, 150 * dpi_scale, 60 * dpi_scale);
@@ -402,13 +434,102 @@ draw_graph_area :: (r: Rect) {
                    
             if became_active && mouse_pointer_is_within(wrapper) {  
                 dropdown_scroll_delta = 0;
+                dashboard_transactions_scroll_delta = 0;
                 graph_details.year = year;
-                update_spendings = true;
+                update_dashboard_transactions = true;
             }
             
             draw_text_in_rect(rect, tprint("%", year));
         }
     }
+}
+
+draw_pie_chart :: (r: Rect, spendings: []Spending, total: float64) {
+    rect := shrink(r, 10 * dpi_scale);
+    
+    start, end := 0, CIRCLE_RESOLUTION-1;
+    for spending, j : spendings {
+        color, ok := hex_to_color(spending.color);
+        if !ok then color = Colors.RED;
+        part := cast(int)(spending.total_spent/total*100);
+        part_end := start+part;
+        if j == spendings.count - 1 part_end = end;
+        immediate_circle(Vector2.{x=rect.x + rect.w/2, y= rect.y + rect.h/2}, 
+                        rect.w*0.3, color, start, part_end); 
+        start += part;
+        if start > end break; 
+    }
+}
+
+draw_dashboard_transactions :: (r: Rect) {  
+    ui_id := get_ui_id_from_loc();
+    maybe_set_hot_or_active(ui_id, r, .NORMAL);
+    
+    line_num := dashboard_transactions.count;
+    if graph_details.active_transaction != 0 then line_num += 2;  
+    content_height := line_num * LINE_HEIGHT;
+    wrapper := r;
+    wrapper = adjust_height(wrapper);
+    if wrapper.h > content_height {
+        wrapper.y += wrapper.h - content_height;
+        wrapper.h = content_height;
+    }
+    
+    transactions_rect := shrink_x(wrapper, 0.015 * wrapper.w);
+    push_scissor(wrapper);
+    defer pop_scissor();
+    scrollbar_id := get_ui_id_from_loc(parent_id = ui_id);
+    to: bool;
+    dashboard_transactions_scroll_delta, to = draw_scrollbar(
+        wrapper, content_height, scrollbar_id, ui_id, dashboard_transactions_scroll_delta, to);
+    transactions_rect.y += dashboard_transactions_scroll_delta;
+    
+    rect, date_rect, note_rect, amount_rect, color_rect : Rect;
+    for tr, tr_index: dashboard_transactions {
+        if tr.id == graph_details.active_transaction {
+            rect, transactions_rect = cut_top(transactions_rect, 3 * LINE_HEIGHT);
+            rect, date_rect = cut_top(rect, LINE_HEIGHT); 
+            date_rect, note_rect = cut_top(date_rect, LINE_HEIGHT); 
+            // Date
+            draw_text_in_rect(date_rect, tr.date, Colors.UI_DIM);
+            // Note
+            note := tr.note;
+            if note == "" note = "No note for the transaction";
+            draw_text_in_rect(note_rect, note, Colors.UI_DIM);
+            draw_line_separator(note_rect);
+        } else {
+            rect, transactions_rect = cut_top(transactions_rect, LINE_HEIGHT);
+            draw_line_separator(rect);
+        }
+        
+        line_id := get_ui_id_from_loc_with_index(ui_id, tr_index);
+        became_active := maybe_set_hot_or_active(line_id, rect, .PRESSABLE);
+                   
+        text_color := Colors.UI_DEFAULT;
+        if is_hovering_over(line_id) then text_color = Colors.UI_DIM; 
+        
+        if became_active {
+            if graph_details.active_transaction == tr.id {
+                graph_details.active_transaction = 0;
+            } else {
+                graph_details.active_transaction = tr.id;
+            }
+        }
+        
+        // Amount
+        amount_rect, rect = cut_right(rect, 0.2 * transactions_rect.w);
+        draw_text_in_rect(amount_rect, tprint("%", formatFloat(tr.amount, trailing_width=2, zero_removal=.NO)), text_color);
+        
+        // Details
+        color_rect, rect = cut_left(rect, 0.01 * transactions_rect.w);
+        c: string;
+        for *cat: categories if cat.id == tr.category_id then {c = cat.color; break;}
+        color, ok := hex_to_color(c);
+        if !ok then color = Colors.RED;
+        draw_rect(color_rect, color);
+        draw_text_in_rect(rect, tr.details, text_color);
+    }
+
 }
 
 draw_message_popup :: () {
@@ -890,7 +1011,7 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
             array_add(*transactions, new_transaction);
             update_transactions = true;
             transactions_scroll_delta_to_bottom = true;
-            update_spendings = true;
+            update_dashboard_transactions = true;
         } else if should_edit_transaction > -1 { 
             ok := add_transaction_to_db(new_transaction.id, new_transaction.date, new_transaction.amount, new_transaction.details, new_transaction.note, new_transaction.category_id);
             if !ok then return;   
@@ -901,7 +1022,7 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
                 }
             }     
             update_transactions = true;
-            update_spendings = true;
+            update_dashboard_transactions = true;
         }
         
         set_null_state();
@@ -1196,7 +1317,7 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
         }
         text_input.text.count = 0;
         print("Updated");
-        update_spendings = true;
+        update_dashboard_transactions = true;
         
         if should_add_rule {
             ok := add_rule_to_db(new_rule.name,  new_rule.category_id);
