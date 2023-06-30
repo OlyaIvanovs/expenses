@@ -16,6 +16,7 @@ Colors :: struct {
     BLUE                    :: Color.{ r = 0, g =0, b = 1};
     YELLOW                  :: Color.{ r = 1, g =1, b = 0};
     CYAN                    :: Color.{ r = 0, g =1, b = 1};
+    BLACK                   :: Color.{ r = 0, g =0, b = 0};
 
     BACKGROUND              :: Color.{ r = 0.0, g = 0.25, b = 0.32 }; 
     BACKGROUND_TRANSPARENT  :: Color.{ r = 0.086, g = 0.133, b = 0.165, a = 0.8 };

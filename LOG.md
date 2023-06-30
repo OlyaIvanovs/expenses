@@ -132,30 +132,36 @@
 + Enter&validate date
 
 # 26/06/2023
-- Pollishing
-- Dashboard tab: show categories + tick
-- Dashboard tab: add a graph
++ Pollishing
++ Dashboard tab: show categories + tick
++ Dashboard tab: add a graph
 
 # 27/06/2023p
 + Polishing
-- Weekly column chart 
++ Weekly column chart 
 
 # 28/06/2023
-- Weekly column chart 
++ Weekly column chart 
 
 # 29/06/2023
++ show list of transactions on click: show all transactions + filter them 
+
+# 30/06/2023
 
 
-Graph:
+
 - max spending for category
-- show list of transactions on click: show all transactions + filter them 
 - color picker bug: dark shade
 - do not save category without name
 - show date on week number hover 
+- date validation bug
+- Dpopdown: Up and down
+- Check add categories bug
+_categories : Transport bug
 
 - Error/validate/confirm message
 - Dialog's inputs
-- Domino's 
+- Domino's & Pierrs
 
 # Next:
 Task: One size buttons(?)

@@ -21,6 +21,7 @@ main :: () {
     
     graph_details.year = to_calendar(current_time_consensus()).year;
     graph_details.category_id = -1;
+    graph_details.type = .weekly_expenses;
     
     daily_spendings, ok = get_daily_spendings(0);
     if !ok return;
@@ -320,10 +321,16 @@ transaction_filter : struct {
     date_sort: sort_direction = .none;  
 };
 
+graph_type :: enum {
+    weekly_expenses;
+    monthly_expenses;
+}
+
 graph_details : struct {
     year: int;
     category_id: int;
     active_transaction: int;
+    type: graph_type;
 };
 
 Message :: struct {
