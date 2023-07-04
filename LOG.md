@@ -147,23 +147,24 @@
 + show list of transactions on click: show all transactions + filter them 
 
 # 30/06/2023
+- monthly bar graph
 
+# 01/07/2023
 
+# 04/07/2023
+- monthly bar graph
 
-- max spending for category
 - color picker bug: dark shade
 - do not save category without name
 - show date on week number hover 
 - date validation bug
 - Dpopdown: Up and down
 - Check add categories bug
-_categories : Transport bug
-
+- categories : Transport bug
+- show sub sum for chosen categories(?)
 - Error/validate/confirm message
 - Dialog's inputs
 - Domino's & Pierrs
-
-# Next:
-Task: One size buttons(?)
-Task: Validation forms(edit&create)
-Task: Update style
+- Update style
+- search for rules
+- remove category_id filter from graph_details. Remove graph_details 

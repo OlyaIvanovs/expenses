@@ -17,7 +17,7 @@ initialise_db :: () -> bool {
 }
 
 
-get_daily_spendings :: (year: int) -> Daily_Spendings, bool {
+get_daily_spendings :: (year: int) -> Period_Spendings, bool {
     spending_query :: #string END
         SELECT category_id, SUM(amount)
         FROM Transactions
@@ -28,10 +28,10 @@ get_daily_spendings :: (year: int) -> Daily_Spendings, bool {
         GROUP BY category_id;
     END
     errmsg: *u8;
-    using daily_spendings: Daily_Spendings;
+    using daily_spendings: Period_Spendings;
 
     for week_index : 0 .. 51 {
-        array_add(*week_indices, spendings.count);
+        array_add(*period_indices, spendings.count);
         week_query := to_c_string(tprint(spending_query, week_index * 7, tprint("%",year)));
         defer free(week_query);
         result := sqlite3_exec(db, week_query, collect_spendings_from_db, *daily_spendings, *errmsg);
@@ -40,8 +40,38 @@ get_daily_spendings :: (year: int) -> Daily_Spendings, bool {
             return daily_spendings, false;
         }
     }
-    array_add(*week_indices, spendings.count);
+    array_add(*period_indices, spendings.count);
     return daily_spendings, true;
+}
+
+get_monthly_spendings_for_last_3_years:: () -> Period_Spendings, bool {
+    spending_query :: #string END
+        SELECT category_id, SUM(amount)
+        FROM Transactions
+        WHERE
+            amount >= 0 AND
+            transaction_date >= strftime('%%Y/%%m/%%d', date('now', '%1 years', 'start of year', '+%2 months')) AND
+            transaction_date <  strftime('%%Y/%%m/%%d', date('now', '%1 years', 'start of year', '+%3 months'))
+        GROUP BY category_id;
+    END
+    errmsg: *u8;
+    using period_spendings: Period_Spendings;
+    
+    for year: -2..0 {
+        for month_index : 0 .. 10 {
+            array_add(*period_indices, spendings.count);
+            print("year % month %\n", year, month_index);
+            month_query := to_c_string(tprint(spending_query, year, month_index, month_index + 1));
+            defer free(month_query);
+            result := sqlite3_exec(db, month_query, collect_spendings_from_db, *period_spendings, *errmsg);
+            if result != SQLITE_OK {
+                log_error("ERROR querying spendings for month %: %\n", month_index, from_c_string(errmsg));
+                return period_spendings, false;
+            }
+        }
+        array_add(*period_indices, spendings.count);
+    }  
+    return period_spendings, true;
 }
 
 get_all_categories_from_db :: () -> bool {
@@ -92,9 +122,8 @@ get_filtered_transactions_from_db :: (category_id: int, year: int, days: int) ->
             transaction_date <  strftime('%%Y/%%m/%%d', date('now', '-%2 years', 'start of year', 'weekday 1', '+%3 days', '+7 days'))
         END;
     }
-    print(query_str, tprint("%", category_id), year, days);
     query := to_c_string(tprint(query_str, tprint("%", category_id), year, days));
-    return get_transactions_from_db(query, *dashboard_transactions);
+    return get_transactions_from_db(query, *weekly_dashboard_transactions.transactions);
 }
 
 
@@ -230,28 +259,6 @@ load_transaction_from_db :: (userdata: *void, num_cols: int, col_data: **u8, col
     return SQLITE_OK;
 }
 
-// load_dashboard_transaction_from_db :: (userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
-//     new_context: Context;
-//     push_context new_context {
-//         assert(num_cols == 6);
-//         ok: bool;
-
-//         transaction := array_add(*dashboard_transactions);
-//         transaction.id, ok = parse_int(*from_c_string(col_data[0]));
-//         if !ok then log_error("Couldn't parse id from string");
-//         if col_data[1] != null then transaction.date = copy_temporary_string(from_c_string(col_data[1]));
-//         transaction.amount, ok = parse_float(*from_c_string(col_data[2]));
-//         if !ok then log_error("Couldn't parse amount from string");
-//         transaction.details = copy_temporary_string(from_c_string(col_data[3]));
-//         if col_data[4] != "" {
-//             transaction.note = copy_temporary_string(from_c_string(col_data[4]));
-//         }
-//         if col_data[5] != null transaction.category_id, ok = parse_int(*from_c_string(col_data[5]));
-//         if !ok then log_error("Couldn't parse category_id from string");
-//     }
-//     return SQLITE_OK;
-// }
-
 load_category_from_db :: (userdata: *void, num_cols: int, col_data: **u8, col_names: **u8) -> int #c_call {
     new_context: Context;
     push_context new_context {
@@ -332,9 +339,9 @@ collect_spendings_from_db :: (userdata: *void, num_cols: int, col_data: **u8, co
         assert(num_cols == 2);
         ok: bool;
 
-        daily_spendings := cast(*Daily_Spendings) userdata;
-
-        spending := array_add(*daily_spendings.spendings);
+        s := cast(*Period_Spendings) userdata;
+        spending := array_add(*s.spendings);
+        
         spending.category_id, ok = parse_int(*from_c_string(col_data[0]));
         if !ok then log_error("Couldn't parse id from string");
         spending.total_spent, ok = parse_float64(*from_c_string(col_data[1]));
@@ -354,8 +361,8 @@ collect_spendings_from_db :: (userdata: *void, num_cols: int, col_data: **u8, co
 
 #scope_export
 
-Daily_Spendings :: struct {
+Period_Spendings :: struct {
     spendings: [..] Spending;
-    week_indices: [..] s64;
+    period_indices: [..] s64;
     max_spending: float64;
 }

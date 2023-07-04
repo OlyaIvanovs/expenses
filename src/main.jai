@@ -19,19 +19,34 @@ main :: () {
     
     for categories table_set(*show_categories_table, it.id, false);
     
-    graph_details.year = to_calendar(current_time_consensus()).year;
+    current_year = to_calendar(current_time_consensus()).year;
+    graph_details.year = current_year;
     graph_details.category_id = -1;
-    graph_details.type = .weekly_expenses;
+    graph_details.type = .weekly;
     
     daily_spendings, ok = get_daily_spendings(0);
     if !ok return;
-    get_max_spending();
+    get_max_spending(*daily_spendings);
+    
+    monthly_spendings, ok = get_monthly_spendings_for_last_3_years();
+    if !ok return;
+    get_max_spending(*monthly_spendings);
     
     ok = get_all_transactions_from_db();
     if !ok return;
     update_filtered_transactions();
-    update_transactions_on_dashboard();
     
+    weekly_dashboard_transactions.scroll_delta = 0;
+    weekly_dashboard_transactions.update = false;
+    weekly_dashboard_transactions.type = .weekly;
+    weekly_dashboard_transactions.transactions = update_transactions_on_dashboard(weekly_dashboard_transactions);
+    
+    monthly_dashboard_transactions.scroll_delta = 0;
+    monthly_dashboard_transactions.chosen_period = -1;
+    monthly_dashboard_transactions.update = false;
+    monthly_dashboard_transactions.type = .monthly;
+    monthly_dashboard_transactions.transactions = update_transactions_on_dashboard(monthly_dashboard_transactions);    
+
     ok = get_all_rules_from_db();
     if !ok return;
 
@@ -53,6 +68,7 @@ main :: () {
         enter_pressed = false;
         key_pressed = false;
         
+        current_year = to_calendar(current_time_consensus()).year;
         frame_time = cast(Time) get_time();
         Input.update_window_events();
 
@@ -182,7 +198,8 @@ panic :: (format_string: string, args: .. Any, exit_code : s32 = 1) {
 
 CIRCLE_RESOLUTION :: 100;
 show_categories_table: Table(int, bool);
-daily_spendings: Daily_Spendings;
+daily_spendings: Period_Spendings;
+monthly_spendings: Period_Spendings;
 
 window_width : s32 = 1920;
 window_height : s32 = 1080;
@@ -237,7 +254,7 @@ new_rule := Rule.{name="", category_id=0};
 
 transactions_raw: [..]Transaction;
 transactions_filtered: [..]Transaction;
-dashboard_transactions: [..]Transaction;
+
 transactions: [..]Transaction;
 Transaction :: struct {
     id: int;
@@ -248,6 +265,18 @@ Transaction :: struct {
     category_id: int;
 }
 new_transaction := Transaction.{details="", note="", category_id=0, amount=0.0, date=""};
+
+Transactions_List :: struct {
+    transactions: [..]Transaction;
+    type: graph_type;
+    update: bool;
+    scroll_delta: float;
+    chosen_period: int;
+}
+
+weekly_dashboard_transactions: Transactions_List;
+monthly_dashboard_transactions: Transactions_List;
+
 
 Spending :: struct {
     category_id: int;
@@ -322,9 +351,11 @@ transaction_filter : struct {
 };
 
 graph_type :: enum {
-    weekly_expenses;
-    monthly_expenses;
+    weekly;
+    monthly;
 }
+
+current_year: int;
 
 graph_details : struct {
     year: int;

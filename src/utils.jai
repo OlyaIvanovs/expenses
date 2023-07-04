@@ -117,51 +117,71 @@ update_filtered_transactions :: ()  {
     }
 }
 
-update_transactions_on_dashboard :: ()  {
-    array_reset_keeping_memory(*dashboard_transactions);
-    start_date := tprint("%/01/01", graph_details.year); 
-    end_date := tprint("%/01/01", graph_details.year+1); 
+update_transactions_on_dashboard :: (transactions_list: Transactions_List) -> [..]Transaction {
+    array_reset_keeping_memory(*transactions_list.transactions);
+    start_date, end_date: string;
+    if transactions_list.type == {
+        case .weekly;
+            start_date = tprint("%/01/01", graph_details.year); 
+            end_date = tprint("%/01/01", graph_details.year+1); 
+        case .monthly;
+            if transactions_list.chosen_period != -1 {
+                year := cast(int) transactions_list.chosen_period / 12 + current_year - 2;
+                month := cast(int) transactions_list.chosen_period % 12;
+                start_date = tprint("%/%/01", year, formatInt(month, minimum_digits=2)); 
+                if month == 12 then {year += 1; month = 0;};
+                end_date = tprint("%/%/01", year, formatInt(month+1, minimum_digits=2)); 
+            } else {
+                start_date = tprint("%/01/01", current_year-2); 
+                end_date = tprint("%/01/01", current_year); 
+            }
+    }
+    
+    print("start_date % end date %\n", start_date, end_date);
+    
     for tr: transactions {
         if tr.amount <= 0 continue;
         show_on_graph, found := table_find(*show_categories_table, tr.category_id);
         if !show_on_graph && show_all_categories_on_graph != 1 continue;
         if compare_strings(tr.date, end_date) > 0 || compare_strings(start_date, tr.date) > 0 then continue;
         if (graph_details.category_id == -1 || tr.category_id == graph_details.category_id) { 
-            array_add(*dashboard_transactions, tr);
+            array_add(*transactions_list.transactions, tr);
         }
     }
+        
+    return transactions_list.transactions;
 }
 
-get_max_spending :: () {
+get_max_spending :: (spendings: *Period_Spendings) {
     max_total: float64;
-    for i : 0 .. daily_spendings.week_indices.count - 2 {
-        start := daily_spendings.week_indices[i];
-        end   := daily_spendings.week_indices[i + 1];
+    for i : 0 .. spendings.period_indices.count - 2 {
+        start := spendings.period_indices[i];
+        end   := spendings.period_indices[i + 1];
         num_spendings := end - start;
-        week_spendings := array_view(daily_spendings.spendings, start, num_spendings);
-        weekly_total:float64 = 0;
-        for spending : week_spendings {
-            weekly_total += spending.total_spent;
+        spendings_array := array_view(spendings.spendings, start, num_spendings);
+        total:float64 = 0;
+        for spending : spendings_array {
+            total += spending.total_spent;
         }
-        if weekly_total > max_total then max_total = weekly_total;
+        if total > max_total then max_total = total;
     }
-    daily_spendings.max_spending = max_total;
+    spendings.max_spending = max_total;
 }
 
 update_spendings_data :: () {
     using daily_spendings;
     array_reset_keeping_memory(*daily_spendings.spendings);
-    array_reset_keeping_memory(*daily_spendings.week_indices);
+    array_reset_keeping_memory(*daily_spendings.period_indices);
     ok: bool;
     daily_spendings, ok = get_daily_spendings(to_calendar(current_time_consensus()).year - graph_details.year);
     if !ok return;
-    get_max_spending();
+    get_max_spending(*daily_spendings);
 }
 
 update_spendings_category :: () {
-    for i : 0 .. daily_spendings.week_indices.count - 2 {
-        start := daily_spendings.week_indices[i];
-        end   := daily_spendings.week_indices[i + 1];
+    for i : 0 .. daily_spendings.period_indices.count - 2 {
+        start := daily_spendings.period_indices[i];
+        end   := daily_spendings.period_indices[i + 1];
         num_spendings := end - start;
         week_spendings := array_view(daily_spendings.spendings, start, num_spendings);
 
@@ -214,6 +234,11 @@ today_to_string :: () -> string {
 // Find a way to show week date
 get_week_name :: (week_num: int, year: int, amount: float64) -> string {
     return tprint("%th week of year % - %", week_num+1, year, formatFloat(amount, trailing_width=2, zero_removal=.NO));
+}
+
+get_month_name :: (month_num: int, year: int, amount: float64) -> string {
+    month_names :: string.["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    return tprint("% of year % - %", month_names[month_num], year, formatFloat(amount, trailing_width=2, zero_removal=.NO));
 }
 
 immediate_circle :: (center: Vector2, radius: float, color: Vector4, start: int, end: int) {
