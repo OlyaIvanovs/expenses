@@ -60,7 +60,6 @@ get_monthly_spendings_for_last_3_years:: () -> Period_Spendings, bool {
     for year: -2..0 {
         for month_index : 0 .. 10 {
             array_add(*period_indices, spendings.count);
-            print("year % month %\n", year, month_index);
             month_query := to_c_string(tprint(spending_query, year, month_index, month_index + 1));
             defer free(month_query);
             result := sqlite3_exec(db, month_query, collect_spendings_from_db, *period_spendings, *errmsg);
@@ -88,8 +87,7 @@ get_all_categories_from_db :: () -> bool {
 get_all_rules_from_db :: () -> bool {
     errmsg : *u8;
     query :: "SELECT * FROM Rules;";
-    result := sqlite3_exec(db, query,
-    load_rule_from_db, null, *errmsg);
+    result := sqlite3_exec(db, query,load_rule_from_db, null, *errmsg);
     if result != SQLITE_OK {
         log_error("ERROR: %\n",from_c_string(errmsg));
         return false;
@@ -264,7 +262,7 @@ load_category_from_db :: (userdata: *void, num_cols: int, col_data: **u8, col_na
     push_context new_context {
         assert(num_cols == 3);
         ok: bool;
-        category := array_add(*categories);
+        category := array_add(*categories_list.categories);
         category.id, ok = parse_int(*from_c_string(col_data[0]));
         if !ok then log_error("Couldn't parse id from string");
         category.name = copy_temporary_string(from_c_string(col_data[1]));
@@ -278,7 +276,7 @@ load_rule_from_db :: (userdata: *void, num_cols: int, col_data: **u8, col_names:
     push_context new_context {
         assert(num_cols == 3);
         ok: bool;
-        rule := array_add(*rules);
+        rule := array_add(*rules_list.rules);
         rule.id, ok = parse_int(*from_c_string(col_data[0]));
         if !ok then log_error("Couldn't parse id from string");
         rule.name = copy_temporary_string(from_c_string(col_data[1]));
@@ -300,7 +298,7 @@ upload_transactions_from_file :: (file_name: string) -> bool {
         t.amount, ok = parse_float64(*row.fields[6]);
         if !ok then log_error("Couldn't parse amount as float: %\n", row.fields[6]);
         t.details = row.fields[5]; 
-        for rule: rules {
+        for rule: rules_list.rules {
             if contains_nocase(t.details, rule.name) then t.category_id = rule.category_id; 
         } 
     }
@@ -346,7 +344,7 @@ collect_spendings_from_db :: (userdata: *void, num_cols: int, col_data: **u8, co
         if !ok then log_error("Couldn't parse id from string");
         spending.total_spent, ok = parse_float64(*from_c_string(col_data[1]));
         if !ok then log_error("Couldn't parse amount from string");
-        for category: categories {
+        for category: categories_list.categories {
             if category.id == spending.category_id {
                 spending.color = category.color;
                 spending.category = category.name;
@@ -358,11 +356,3 @@ collect_spendings_from_db :: (userdata: *void, num_cols: int, col_data: **u8, co
     return SQLITE_OK;
 }
 
-
-#scope_export
-
-Period_Spendings :: struct {
-    spendings: [..] Spending;
-    period_indices: [..] s64;
-    max_spending: float64;
-}

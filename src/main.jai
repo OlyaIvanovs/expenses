@@ -16,8 +16,10 @@ main :: () {
     
     ok = get_all_categories_from_db();
     if !ok return;
+    categories_list.edit = -1;
+    categories_list.delete = -1;
     
-    for categories table_set(*show_categories_table, it.id, false);
+    for categories_list.categories table_set(*show_categories_table, it.id, false);
     
     current_year = to_calendar(current_time_consensus()).year;
     graph_details.year = current_year;
@@ -36,20 +38,18 @@ main :: () {
     if !ok return;
     update_filtered_transactions();
     
-    weekly_dashboard_transactions.scroll_delta = 0;
-    weekly_dashboard_transactions.update = false;
     weekly_dashboard_transactions.type = .weekly;
     weekly_dashboard_transactions.transactions = update_transactions_on_dashboard(weekly_dashboard_transactions);
     
-    monthly_dashboard_transactions.scroll_delta = 0;
     monthly_dashboard_transactions.chosen_period = -1;
-    monthly_dashboard_transactions.update = false;
     monthly_dashboard_transactions.type = .monthly;
     monthly_dashboard_transactions.transactions = update_transactions_on_dashboard(monthly_dashboard_transactions);    
 
     ok = get_all_rules_from_db();
     if !ok return;
-
+    rules_list.edit = -1;
+    rules_list.delete = -1;
+    
     // Window
     window_x, window_y := platform_get_biggest_monitor_pos();
     window = create_window(window_width, window_height, "Expenses", window_x, window_y, background_color_rgb = as_3_floats(Colors.BACKGROUND));
@@ -235,16 +235,20 @@ Program_State :: enum {
     settings;
 }
 
-categories: [..] Category;
-Category :: struct {
-    id: int;
-    name: string;
-    color: string;
-}
-new_category := Category.{name="", color="e3a019"};
 show_all_categories_on_graph := 1;
 
-rules: [..] Rule;
+List_Info :: struct {
+    scroll_delta: float;
+    scroll_delta_to_bottom: bool;
+    edit: int;
+    add: bool;
+    delete: int;
+} 
+
+rules_list : struct {
+    rules: [..]Rule;
+    using info: List_Info;
+};
 Rule :: struct {
     id: int;
     name: string;
@@ -252,9 +256,19 @@ Rule :: struct {
 }
 new_rule := Rule.{name="", category_id=0};
 
+categories_list : struct {
+    categories: [..]Category;
+    using info: List_Info;
+}
+Category :: struct {
+    id: int;
+    name: string;
+    color: string;
+}
+new_category := Category.{name="", color="e3a019"};
+
 transactions_raw: [..]Transaction;
 transactions_filtered: [..]Transaction;
-
 transactions: [..]Transaction;
 Transaction :: struct {
     id: int;
@@ -265,7 +279,6 @@ Transaction :: struct {
     category_id: int;
 }
 new_transaction := Transaction.{details="", note="", category_id=0, amount=0.0, date=""};
-
 Transactions_List :: struct {
     transactions: [..]Transaction;
     type: graph_type;
@@ -273,16 +286,19 @@ Transactions_List :: struct {
     scroll_delta: float;
     chosen_period: int;
 }
-
 weekly_dashboard_transactions: Transactions_List;
 monthly_dashboard_transactions: Transactions_List;
-
 
 Spending :: struct {
     category_id: int;
     total_spent: float64;
     color: string;
     category: string;
+}
+Period_Spendings :: struct {
+    spendings: [..] Spending;
+    period_indices: [..] s64;
+    max_spending: float64;
 }
 
 screen: Rect;  // contains the current working area rect for convenience

@@ -152,19 +152,28 @@
 # 01/07/2023
 
 # 04/07/2023
-- monthly bar graph
++ monthly bar graph
 
+#05/07/2023
++ monthly bar graph: fix unfilter transactions
++ update monthly graph when update category & rules
+
++ dashboard_categories
++ create new structure for rules and categories and settings_transactions
+- categories and rules
+- search for rules(+ add category)
+- monthly graph: 12th month
+- show sub sum for chosen categories(?)
+- Domino's & Pierrs
+- switch between monthly and weekly: unfilter;
 - color picker bug: dark shade
-- do not save category without name
+- categories: do not save category without name
+- categories: check adding category bug
++ categories : Transport bug
 - show date on week number hover 
 - date validation bug
 - Dpopdown: Up and down
-- Check add categories bug
-- categories : Transport bug
-- show sub sum for chosen categories(?)
 - Error/validate/confirm message
 - Dialog's inputs
-- Domino's & Pierrs
 - Update style
-- search for rules
 - remove category_id filter from graph_details. Remove graph_details 

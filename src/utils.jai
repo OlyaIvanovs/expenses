@@ -80,7 +80,7 @@ get_upload_file_name :: () -> string /* temp */, success: bool {
 
 get_category_name :: (category_id: int) -> string{
     if category_id == -1 then return "All categories";
-    for categories if it.id == category_id { 
+    for categories_list.categories if it.id == category_id { 
         return  it.name;
     }
     return "UNCATEGORISED";
@@ -136,9 +136,7 @@ update_transactions_on_dashboard :: (transactions_list: Transactions_List) -> [.
                 end_date = tprint("%/01/01", current_year); 
             }
     }
-    
-    print("start_date % end date %\n", start_date, end_date);
-    
+        
     for tr: transactions {
         if tr.amount <= 0 continue;
         show_on_graph, found := table_find(*show_categories_table, tr.category_id);
@@ -168,33 +166,34 @@ get_max_spending :: (spendings: *Period_Spendings) {
     spendings.max_spending = max_total;
 }
 
-update_spendings_data :: () {
-    using daily_spendings;
-    array_reset_keeping_memory(*daily_spendings.spendings);
-    array_reset_keeping_memory(*daily_spendings.period_indices);
+update_spendings_data :: (period_spendings: Period_Spendings, type: graph_type) -> Period_Spendings {
+    s := period_spendings;
+    using s;
+    array_reset_keeping_memory(*spendings);
+    array_reset_keeping_memory(*period_indices);
     ok: bool;
-    daily_spendings, ok = get_daily_spendings(to_calendar(current_time_consensus()).year - graph_details.year);
-    if !ok return;
-    get_max_spending(*daily_spendings);
+    if type == {
+        case .weekly;
+            s, ok = get_daily_spendings(to_calendar(current_time_consensus()).year - graph_details.year);
+        case .monthly;
+            s, ok = get_monthly_spendings_for_last_3_years();
+    }
+    if !ok return s;
+    get_max_spending(*s);
+    return s;
 }
 
-update_spendings_category :: () {
-    for i : 0 .. daily_spendings.period_indices.count - 2 {
-        start := daily_spendings.period_indices[i];
-        end   := daily_spendings.period_indices[i + 1];
-        num_spendings := end - start;
-        week_spendings := array_view(daily_spendings.spendings, start, num_spendings);
 
-        for *spending, i : week_spendings {
-            for category: categories {
-                if category.id == spending.category_id {
-                    spending.color = category.color;
-                    spending.category = category.name;
-                    break;
-                }
-            }  
-        }
-    }
+update_spendings_category :: (spendings: [..]Spending) {
+    for *spending : spendings {
+        for category: categories_list.categories {
+            if category.id == spending.category_id {
+                spending.color = category.color;
+                spending.category = category.name;
+                break;
+            }
+        }  
+    } 
 }
 
 // date format yyyy/mm/dd
