@@ -160,14 +160,12 @@ draw_dashboard :: (main_area: Rect) {
    
     if weekly_dashboard_transactions.update {
         daily_spendings = update_spendings_data(daily_spendings, .weekly);
-        weekly_dashboard_transactions.transactions = update_transactions_on_dashboard(weekly_dashboard_transactions);
-        weekly_dashboard_transactions.update = false;
+        update_transactions_on_dashboard(*weekly_dashboard_transactions);
         redraw_requested = true;
     }
     
      if monthly_dashboard_transactions.update {
-        monthly_dashboard_transactions.transactions = update_transactions_on_dashboard(monthly_dashboard_transactions);
-        monthly_dashboard_transactions.update = false;
+        update_transactions_on_dashboard(*monthly_dashboard_transactions);
         redraw_requested = true;
     }
 }
@@ -181,7 +179,7 @@ draw_settings :: (r: Rect) {
     draw_rect(r, Colors.BACKGROUND_LIGHT);
     draw_categories(categories_rect);
     draw_rules(rules_rect);
-    draw_transactions(main_area);
+    draw_settings_transactions(main_area);
     
     // Draw confirmation dialog
     if categories_list.delete > -1 {
@@ -203,6 +201,12 @@ draw_settings :: (r: Rect) {
     if update_transactions {
         update_transactions = false;
         update_filtered_transactions();
+        redraw_requested = true;
+    }
+    
+    if rules_list.update {
+        rules_list.update = false;
+        update_filtered_rules();
         redraw_requested = true;
     }
 }
@@ -257,9 +261,10 @@ draw_dashboard_categories :: (r: Rect) {
     
     // Scrollbar
     scrollbar_id := get_ui_id_from_loc(parent_id = ui_id);
-    categories_list.scroll_delta, categories_list.scroll_delta_to_bottom = draw_scrollbar(
-        wrapper, content_height, scrollbar_id, ui_id, categories_list.scroll_delta, categories_list.scroll_delta_to_bottom);
-    categories_rect.y += categories_list.scroll_delta;
+    to: bool;
+    categories_list.scroll_delta_dashboard, to = draw_scrollbar(
+        wrapper, content_height, scrollbar_id, ui_id, categories_list.scroll_delta_dashboard, to);
+    categories_rect.y += categories_list.scroll_delta_dashboard;
     
     draw_line :: (r: Rect, ui_id: Ui_Id, category: *Category) {
         rect := r;
@@ -281,6 +286,9 @@ draw_dashboard_categories :: (r: Rect) {
             weekly_dashboard_transactions.update = true;
             monthly_dashboard_transactions.update = true;
             graph_details.active_transaction = 0;
+            graph_details.category_id = -1;
+            monthly_dashboard_transactions.chosen_period = -1;
+            
             if show_on_graph && category.id != -1 {
                 table_set(*show_categories_table, category.id, false);
                 show_all_categories_on_graph -= 1;
@@ -341,7 +349,7 @@ draw_monthly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
     bar_rect := cut_left(graph_rect, (graph_rect.w / 12) - padding * 5);
     
     using monthly_spendings;
-    for i : 0 .. 10 {
+    for i : 0 .. 11 {
         month_id := get_ui_id_from_loc_with_index(ui_id, (i+1));
         month_rect := bar_rect;
         month_name_rect: Rect;
@@ -532,6 +540,9 @@ draw_weekly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
                 array_reset_keeping_memory(*weekly_dashboard_transactions.transactions);
                 get_filtered_transactions_from_db(
                     spending.category_id, to_calendar(current_time_consensus()).year-graph_details.year, i*7);
+                total: float64;
+                for tr: weekly_dashboard_transactions.transactions total += tr.amount;
+                weekly_dashboard_transactions.subtotal = total;
             }
             
             if is_hovering_over(bar_id) {
@@ -631,12 +642,18 @@ draw_dashboard_transactions :: (r: Rect, transactions_list: *Transactions_List) 
     draw_rect(r, Colors.BACKGROUND_LIGHT);
     
     // "Unfilter" icon
-    filter_icon_rect := make_rect(
-        r.x + r.w - 30 * dpi_scale,
+    filter_icon_rect: Rect;
+    info_rect := make_rect(
+        r.x + 0.75 * r.w,
         r.y + r.h + 10 * dpi_scale,
-        20 * dpi_scale,
+        0.25 * r.w,
         20 * dpi_scale,
     );
+    filter_icon_rect, info_rect = cut_right(info_rect, 20 * dpi_scale);
+    draw_text_in_rect(info_rect, 
+                        tprint("%", formatFloat(transactions_list.subtotal, trailing_width=2, zero_removal=.NO)),
+                        centered=true);
+    
     draw_icon(0xe17b, filter_icon_rect, Colors.UI_DEFAULT);
     filter_icon_id := get_ui_id_from_loc();
     became_active := maybe_set_hot_or_active(filter_icon_id, filter_icon_rect, .PRESSABLE, false);
@@ -645,7 +662,7 @@ draw_dashboard_transactions :: (r: Rect, transactions_list: *Transactions_List) 
         transactions_list.chosen_period = -1;
         graph_details.category_id = -1;
     }  
-    
+        
     wrapper : = r;
     line_num := transactions_list.transactions.count;
     if graph_details.active_transaction != 0 then line_num += 2;  
@@ -805,12 +822,14 @@ draw_categories :: (r: Rect) {
         draw_line_separator(rect);
         
         category_line_id := get_ui_id_from_loc_with_index(ui_id, cat_index);
-        became_active := maybe_set_hot_or_active(category_line_id, rect, .NORMAL) && mouse_pointer_is_within(wrapper);
+        became_active: bool;
+        if mouse_pointer_is_within(wrapper) {
+            became_active = maybe_set_hot_or_active(category_line_id, rect, .PRESSABLE);
+        }
         
         color_rect, category_rect, icons_rect: Rect;
         icons_rect, rect = cut_right(rect, 20 * dpi_scale);
         color_rect, rect = cut_left(rect, 30 * dpi_scale);
-        
         text_color := Colors.UI_DEFAULT;
                 
         // Show icons & change text color on hover
@@ -858,10 +877,53 @@ draw_rules :: (r: Rect) {
     ui_id := get_ui_id_from_loc();  
     maybe_set_hot_or_active(ui_id, r, .NORMAL);
     
-    count := rules_list.rules.count;
-    content_height := rules_list.rules.count * LINE_HEIGHT;
+    count := rules_list.filtered_rules.count;
+    content_height := count * LINE_HEIGHT;
     
     rules_rect := draw_title(r, tprint("Rules (%)", count));
+    
+    filter_panel, category_filter, icon_rect, name_rect: Rect;
+    filter_panel, rules_rect = cut_top(rules_rect, LINE_HEIGHT + padding);
+    filter_panel = shrink_x(filter_panel, 15 * dpi_scale);
+    draw_line_separator(filter_panel);
+    
+    // Category Filter
+    category_filter, filter_panel = cut_right(
+        filter_panel, 0.5 * (filter_panel.w - 30 * dpi_scale) + 30 * dpi_scale); // + 30dpi - trash icon width
+    category_filter_id := get_ui_id_from_loc();
+    became_active := maybe_set_hot_or_active(category_filter_id, category_filter, .PRESSABLE, true);
+    category_filter, icon_rect = cut_left(category_filter, 85 * dpi_scale); 
+    draw_icon(0xf107, icon_rect, Colors.BACKGROUND_BRIGHT);
+    if ui.active_input == category_filter_id {
+        // Draw dropdown
+        rules_list.show_category_dropdown = true;
+    } else {
+        rules_list.show_category_dropdown = false;
+    }
+    
+    if rules_list.category_filter > -1 {
+        draw_text_in_rect(category_filter, get_category_name(rules_list.category_filter), Colors.BACKGROUND_BRIGHT);
+    } else {
+        draw_text_in_rect(category_filter, "Category", Colors.BACKGROUND_BRIGHT);
+    }
+    
+    name_rect, filter_panel = cut_left(filter_panel, 0.5 * (filter_panel.w - 30 * dpi_scale));
+    name_filter_id := get_ui_id_from_loc();
+    became_active = maybe_set_hot_or_active(name_filter_id, name_rect, .PRESSABLE);
+    name_rect, icon_rect = cut_left(name_rect, 50 * dpi_scale);
+    draw_text_in_rect(name_rect, "Name", Colors.BACKGROUND_BRIGHT);
+    draw_icon(0xf07d, icon_rect, Colors.BACKGROUND_BRIGHT);
+    if became_active {
+        print("ACTIVE");
+        // transaction_filter.amount_sort = .none;
+        // if transaction_filter.date_sort == {
+        //     case .none;       transaction_filter.date_sort = .ascending;
+        //     case .ascending;  transaction_filter.date_sort = .descending;
+        //     case .descending; transaction_filter.date_sort = .ascending;
+        // }
+        // update_transactions = true;
+    }
+    
     add_rule_button, wrapper := cut_bottom(rules_rect, LINE_HEIGHT + padding);
     wrapper = adjust_height(wrapper);
     
@@ -873,6 +935,7 @@ draw_rules :: (r: Rect) {
     
     rules_rect = shrink_x(rules_rect, 15 * dpi_scale);
     push_scissor(wrapper);
+    
     scrollbar_id := get_ui_id_from_loc(parent_id = ui_id);
     rules_list.scroll_delta, rules_list.scroll_delta_to_bottom = draw_scrollbar(
         wrapper, content_height, scrollbar_id, ui_id, rules_list.scroll_delta, rules_list.scroll_delta_to_bottom);
@@ -881,46 +944,42 @@ draw_rules :: (r: Rect) {
     trash_icon_width := prepare_trash_icon();
     
     rect: Rect;
-    for rule, rule_index: rules_list.rules {
+    for rule, rule_index: rules_list.filtered_rules {
         rect, rules_rect = cut_top(rules_rect, LINE_HEIGHT);
         draw_line_separator(rect);
         
         rule_line_id := get_ui_id_from_loc_with_index(ui_id, rule_index);
-        became_active := maybe_set_hot_or_active(rule_line_id, rect, .NORMAL) && mouse_pointer_is_within(wrapper);
+        became_active: bool;
+        if mouse_pointer_is_within(wrapper) {
+            became_active = maybe_set_hot_or_active(rule_line_id, rect, .PRESSABLE);
+        }
         
         details_rect, category_rect, icons_rect: Rect;
         icons_rect, rect = cut_right(rect, 30 * dpi_scale);
-        
         text_color := Colors.UI_DEFAULT;
         
         // Show icons on hover
         if is_hovering_over(rule_line_id) && mouse_pointer_is_within(wrapper) {
-            set_pointer_image(.PRESSABLE);
             text_color = Colors.UI_DIM;
             pen := make_vector2(icons_rect.x + (icons_rect.w - trash_icon_width) / 2, 
                     icons_rect.y + (icons_rect.h - font.character_height) / 2 + 2 * dpi_scale);
     
             if mouse_pointer_is_within(icons_rect) {
                 Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DIM);
-                if became_active then rules_list.delete = rule_index;
+                if became_active then rules_list.delete = rule.id;
             } else {
                 Simp.draw_prepared_text(font_icons, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
             }
          }
         
         if became_active && rules_list.delete < 0 {
-            rules_list.edit = rule_index;
-            new_rule = rules_list.rules[rule_index];
+            rules_list.edit = rule.id;
+            new_rule = rule;
         }
-         
-        line_width := rect.w;
-        
-        // Details
-        details_rect, rect = cut_left(rect, 0.5 * line_width);
+                 
+        // Details & Category
+        details_rect, category_rect = cut_left(rect, 0.5 * rect.w);
         draw_text_in_rect(details_rect, rule.name, text_color);
-        
-        // Category
-        category_rect, rect = cut_left(rect, 0.4 * line_width);
         draw_text_in_rect(category_rect, get_category_name(rule.category_id), text_color);
     }
     
@@ -930,9 +989,14 @@ draw_rules :: (r: Rect) {
     rect, add_rule_button = cut_top(add_rule_button, padding);
     add_rule_button = set_max_size_button(add_rule_button);
     button_id := get_ui_id_from_loc();
-    became_active := maybe_set_hot_or_active(button_id, add_rule_button, .PRESSABLE);
+    became_active = maybe_set_hot_or_active(button_id, add_rule_button, .PRESSABLE);
     if became_active then rules_list.add = true;
     draw_button(add_rule_button, "Add a new rule");
+    
+    if rules_list.show_category_dropdown {
+        rules_list.category_filter = draw_categories_dropdown(category_filter, rules_list.category_filter);
+    }
+    
 }
 
 draw_dialog_base :: (height: float, width: float) -> dialog: Rect {
@@ -1190,7 +1254,6 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
             if !ok then return;  
             new_transaction.id = id;
             array_add(*transactions, new_transaction);
-            update_transactions = true;
             transactions_scroll_delta_to_bottom = true;
             weekly_dashboard_transactions.update = true;
             monthly_dashboard_transactions.update = true;
@@ -1203,10 +1266,10 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
                     break;
                 }
             }     
-            update_transactions = true;
             weekly_dashboard_transactions.update = true;
             monthly_dashboard_transactions.update = true;
         }
+        update_transactions = true;
         
         set_null_state();
     } else if no_chosen {
@@ -1362,7 +1425,12 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
         case "category"; 
             text = tprint("Are you sure you want to remove category '%'?", categories_list.categories[categories_list.delete].name);
         case "rule"; 
-            text = tprint("Are you sure you want to remove rule '%'?", rules_list.rules[rules_list.delete].name);
+            for rule: rules_list.rules {
+                if rule.id == rules_list.delete {
+                    text = tprint("Are you sure you want to remove rule '%'?", rule.name);
+                    break;
+                }
+            }
         case "all_transactions"; 
             text = tprint("Are you sure you want to remove all transactions?");
         case "transaction";
@@ -1411,15 +1479,23 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
             update_transactions = true;
             set_null_state();
         case "rule"; 
+            category := -1;
+            ok := delete_rule_from_db(rules_list.delete);
+            if !ok then return;
+            for rule, index: rules_list.rules {
+                if rule.id == rules_list.delete {
+                    category = rule.category_id;
+                    array_ordered_remove_by_index(*rules_list.rules, index);
+                }
+            }
             for *tr: transactions {
-                if tr.category_id == rules_list.rules[rules_list.delete].category_id {
+                if tr.category_id == category {
                     tr.category_id = 0;
                     add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
                 }
             }
-            ok := delete_rule_from_db(rules_list.rules[rules_list.delete].id);
-            if !ok then return;
-            array_ordered_remove_by_index(*rules_list.rules, rules_list.delete);
+            
+            rules_list.update = true;
             set_null_state();  
         case "all_transactions";
             ok := delete_all_transaction_from_db();
@@ -1514,6 +1590,7 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
         }
         text_input.text.count = 0;
         update_transactions = true;
+        rules_list.update = true;
         weekly_dashboard_transactions.update = true;
         monthly_dashboard_transactions.update = true;
         monthly_spendings = update_spendings_data(monthly_spendings, .monthly);
@@ -1608,7 +1685,7 @@ prepare_trash_icon :: () -> float {
     return  cast(float) Simp.prepare_text(font_icons, to_string(*trash_icon_char));
 }
 
-draw_transactions :: (r: Rect) {
+draw_settings_transactions :: (r: Rect) {
     date_rect, details_rect, amount_rect, category_rect, icons_rect, icon_rect, rect, pad, category_filter: Rect; 
     count := transactions_filtered.count;
         
@@ -1619,6 +1696,7 @@ draw_transactions :: (r: Rect) {
     transactions_filter_panel, transactions_rect = cut_top(transactions_rect, LINE_HEIGHT + padding);
     pad, transactions_filter_panel = cut_top(transactions_filter_panel, padding);
     transactions_filter_panel = shrink_x(transactions_filter_panel, 0.015 * window_width);
+    draw_line_separator(transactions_filter_panel);
     line_width := transactions_filter_panel.w;
     transactions_buttons, wrapper := cut_bottom(transactions_rect, LINE_HEIGHT + padding);
     wrapper = adjust_height(wrapper);
@@ -1747,8 +1825,8 @@ draw_transactions :: (r: Rect) {
     date_filter_id := get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(date_filter_id, date_rect, .PRESSABLE);
     date_rect, icon_rect = cut_left(date_rect, 50 * dpi_scale);
-    draw_text_in_rect(date_rect, "Date");
-    draw_icon(0xf07d, icon_rect);
+    draw_text_in_rect(date_rect, "Date", Colors.BACKGROUND_BRIGHT);
+    draw_icon(0xf07d, icon_rect, Colors.BACKGROUND_BRIGHT);
     if became_active {
         transaction_filter.amount_sort = .none;
         if transaction_filter.date_sort == {
@@ -1765,7 +1843,7 @@ draw_transactions :: (r: Rect) {
     category_filter_id := get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(category_filter_id, category_filter, .PRESSABLE, true);
     category_filter, icon_rect = cut_left(category_filter, 85 * dpi_scale); 
-    draw_icon(0xf107, icon_rect);
+    draw_icon(0xf107, icon_rect, Colors.BACKGROUND_BRIGHT);
     if ui.active_input == category_filter_id {
         // Draw dropdown
         should_show_category_dropdown = true;
@@ -1775,9 +1853,9 @@ draw_transactions :: (r: Rect) {
     }
     
     if transaction_filter.category_filter > -1 {
-        draw_text_in_rect(category_filter, get_category_name(transaction_filter.category_filter));
+        draw_text_in_rect(category_filter, get_category_name(transaction_filter.category_filter), Colors.BACKGROUND_BRIGHT);
     } else {
-        draw_text_in_rect(category_filter, "Category");
+        draw_text_in_rect(category_filter, "Category", Colors.BACKGROUND_BRIGHT);
     }
     
     // Amount Sort
@@ -1785,8 +1863,8 @@ draw_transactions :: (r: Rect) {
     amount_filter_id := get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(amount_filter_id, amount_rect, .PRESSABLE);
     amount_rect, icon_rect = cut_left(amount_rect, 65 * dpi_scale);;
-    draw_text_in_rect(amount_rect, "Amount");
-    draw_icon(0xf07d, icon_rect);
+    draw_text_in_rect(amount_rect, "Amount", Colors.BACKGROUND_BRIGHT);
+    draw_icon(0xf07d, icon_rect, Colors.BACKGROUND_BRIGHT);
     if became_active {
         transaction_filter.date_sort = .none;
         if transaction_filter.amount_sort == {
@@ -1826,65 +1904,75 @@ draw_transactions :: (r: Rect) {
 
     // Draw dropdown
     if should_show_category_dropdown {
-        wrapper := category_filter;
-        wrapper.h = min(categories_list.categories.count, 5) * LINE_HEIGHT;
-        wrapper.y = category_filter.y - wrapper.h;
-        min_width := cast(float) Simp.prepare_text(font, "All categories");
-        wrapper.w = min_width + 20 * dpi_scale;
-        draw_rect(wrapper, Colors.SEARCH_RESULT_INACTIVE); 
-        
-        ui_id := get_ui_id_from_loc();
-        maybe_set_hot_or_active(ui_id, wrapper, .NORMAL, false);
-    
-        content_height := categories_list.categories.count * LINE_HEIGHT;
-        dropdown_rect := wrapper;
-        if content_height <= wrapper.h  { // no scroll
-            wrapper.y += wrapper.h - content_height;
-            wrapper.h = content_height;
-            dropdown_rect = wrapper;
-        } else { // place for scroll
-            dropdown_rect = cut_left(wrapper, wrapper.w - 10 * dpi_scale);
-        }
-        
-        push_scissor(wrapper);
-        defer pop_scissor();
-        
-        scrollbar_id := get_ui_id_from_loc(parent_id = ui_id);
-        to: bool;
-        dropdown_scroll_delta, to = draw_scrollbar(
-            wrapper, content_height, scrollbar_id, ui_id, dropdown_scroll_delta);
-        dropdown_rect.y += dropdown_scroll_delta;
-        
-        draw_line :: (rect: Rect, category: *Category, ui_id: Ui_Id, wrapper: Rect) {
-            became_active := maybe_set_hot_or_active(ui_id, rect, .NORMAL);   
-            
-            if is_hovering_over(ui_id) && mouse_pointer_is_within(wrapper) {
-                draw_rect(rect, Colors.BACKGROUND_LIGHT);
-                set_pointer_image(.PRESSABLE);
-            }
-                   
-            if became_active && mouse_pointer_is_within(wrapper) {  
-                transaction_filter.category_filter = category.id;
-                dropdown_scroll_delta = 0;
-                update_transactions = true;
-            }
-            
-            draw_text_in_rect(rect, category.name);
-        }
-        
-        if transaction_filter.category_filter != -1 {
-            category_line_id := get_ui_id_from_loc_with_index(ui_id, categories_list.categories.count);
-            rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
-            category := Category.{name="All categories", id=-1};
-            draw_line(rect, *category, category_line_id, wrapper);
-        }                    
-        for *category, cat_index: categories_list.categories {
-            if category.id == transaction_filter.category_filter continue;
-            rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
-            category_line_id := get_ui_id_from_loc_with_index(ui_id, cat_index);
-            draw_line(rect, category, category_line_id, wrapper);
-        }
+        transaction_filter.category_filter = draw_categories_dropdown(category_filter, transaction_filter.category_filter);
     }
+}
+
+draw_categories_dropdown :: (r: Rect, category_filter: int) -> int{
+    wrapper := r;
+    wrapper.h = min(categories_list.categories.count, 5) * LINE_HEIGHT;
+    wrapper.y = r.y - wrapper.h;
+    min_width := cast(float) Simp.prepare_text(font, "All categories");
+    wrapper.w = min_width + 20 * dpi_scale;
+    draw_rect(wrapper, Colors.SEARCH_RESULT_INACTIVE); 
+    
+    ui_id := get_ui_id_from_loc();
+    maybe_set_hot_or_active(ui_id, wrapper, .NORMAL, false);
+
+    content_height := categories_list.categories.count * LINE_HEIGHT;
+    dropdown_rect := wrapper;
+    if content_height <= wrapper.h  { // no scroll
+        wrapper.y += wrapper.h - content_height;
+        wrapper.h = content_height;
+        dropdown_rect = wrapper;
+    } else { // place for scroll
+        dropdown_rect = cut_left(wrapper, wrapper.w - 10 * dpi_scale);
+    }
+    
+    push_scissor(wrapper);
+    defer pop_scissor();
+    
+    scrollbar_id := get_ui_id_from_loc(parent_id = ui_id);
+    to: bool;
+    dropdown_scroll_delta, to = draw_scrollbar(
+        wrapper, content_height, scrollbar_id, ui_id, dropdown_scroll_delta);
+    dropdown_rect.y += dropdown_scroll_delta;
+    
+    draw_line :: (rect: Rect, category: *Category, ui_id: Ui_Id, wrapper: Rect, category_filter: int) -> int {
+        became_active := maybe_set_hot_or_active(ui_id, rect, .NORMAL);   
+        
+        if is_hovering_over(ui_id) && mouse_pointer_is_within(wrapper) {
+            draw_rect(rect, Colors.BACKGROUND_LIGHT);
+            set_pointer_image(.PRESSABLE);
+        }
+               
+        if became_active && mouse_pointer_is_within(wrapper) {  
+            category_filter = category.id;
+            dropdown_scroll_delta = 0;
+            update_transactions = true;
+            rules_list.update = true;
+            rules_list.scroll_delta = 0;
+        }
+        
+        draw_text_in_rect(rect, category.name);
+        return category_filter;
+    }
+    
+    rect: Rect;
+    if category_filter != -1 {
+        category_line_id := get_ui_id_from_loc_with_index(ui_id, categories_list.categories.count);
+        rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
+        category := Category.{name="All categories", id=-1};
+        category_filter = draw_line(rect, *category, category_line_id, wrapper, category_filter);
+    }                    
+    for *category, cat_index: categories_list.categories {
+        if category.id == category_filter continue;
+        rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
+        category_line_id := get_ui_id_from_loc_with_index(ui_id, cat_index);
+        category_filter = draw_line(rect, category, category_line_id, wrapper, category_filter);
+    }
+    
+    return category_filter;
 }
 
 draw_text_input :: (using text_input: *Text_Input, r: Rect, ui_id: Ui_Id, color: Color = Colors.UI_DEFAULT) {

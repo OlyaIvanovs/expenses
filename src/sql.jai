@@ -58,7 +58,7 @@ get_monthly_spendings_for_last_3_years:: () -> Period_Spendings, bool {
     using period_spendings: Period_Spendings;
     
     for year: -2..0 {
-        for month_index : 0 .. 10 {
+        for month_index : 0 .. 11 {
             array_add(*period_indices, spendings.count);
             month_query := to_c_string(tprint(spending_query, year, month_index, month_index + 1));
             defer free(month_query);
@@ -68,8 +68,8 @@ get_monthly_spendings_for_last_3_years:: () -> Period_Spendings, bool {
                 return period_spendings, false;
             }
         }
-        array_add(*period_indices, spendings.count);
     }  
+    array_add(*period_indices, spendings.count);
     return period_spendings, true;
 }
 

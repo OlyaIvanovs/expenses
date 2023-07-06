@@ -94,6 +94,8 @@ update_filtered_transactions :: ()  {
             contains_nocase(tr.details, transaction_filter.transactions_search) then array_add(*transactions_filtered, tr);
     }
     
+    if transaction_filter.transactions_search != "" then transactions_scroll_delta = 0;
+    
     if transaction_filter.amount_sort != .none {
         quick_sort(transactions_filtered, tr => transaction_filter.amount_sort * tr.amount);
         transactions_scroll_delta = 0;
@@ -101,6 +103,7 @@ update_filtered_transactions :: ()  {
         quick_sort(transactions_filtered,  compare_tr_dates);
         transactions_scroll_delta = 0;
     }
+    
         
     compare_tr_dates :: (tr1: Transaction, tr2: Transaction) -> s64 {
         a := tr1.date; 
@@ -117,8 +120,9 @@ update_filtered_transactions :: ()  {
     }
 }
 
-update_transactions_on_dashboard :: (transactions_list: Transactions_List) -> [..]Transaction {
+update_transactions_on_dashboard :: (transactions_list: *Transactions_List) {
     array_reset_keeping_memory(*transactions_list.transactions);
+    subtotal: float64;
     start_date, end_date: string;
     if transactions_list.type == {
         case .weekly;
@@ -136,18 +140,19 @@ update_transactions_on_dashboard :: (transactions_list: Transactions_List) -> [.
                 end_date = tprint("%/01/01", current_year); 
             }
     }
-        
+            
     for tr: transactions {
         if tr.amount <= 0 continue;
         show_on_graph, found := table_find(*show_categories_table, tr.category_id);
         if !show_on_graph && show_all_categories_on_graph != 1 continue;
         if compare_strings(tr.date, end_date) > 0 || compare_strings(start_date, tr.date) > 0 then continue;
         if (graph_details.category_id == -1 || tr.category_id == graph_details.category_id) { 
+            subtotal += tr.amount; 
             array_add(*transactions_list.transactions, tr);
         }
     }
-        
-    return transactions_list.transactions;
+    transactions_list.update = false;
+    transactions_list.subtotal = subtotal;
 }
 
 get_max_spending :: (spendings: *Period_Spendings) {
@@ -164,6 +169,25 @@ get_max_spending :: (spendings: *Period_Spendings) {
         if total > max_total then max_total = total;
     }
     spendings.max_spending = max_total;
+}
+
+update_filtered_rules :: ()  {
+    using rules_list;
+    array_reset_keeping_memory(*filtered_rules);
+    for rule: rules {
+        // -1: All categories 
+        if (category_filter == -1 || rule.category_id == category_filter) {
+            array_add(*filtered_rules, rule);
+        }
+    }
+    
+    // if transaction_filter.amount_sort != .none {
+    //     quick_sort(transactions_filtered, tr => transaction_filter.amount_sort * tr.amount);
+    //     transactions_scroll_delta = 0;
+    // } else if transaction_filter.date_sort != .none { 
+    //     quick_sort(transactions_filtered,  compare_tr_dates);
+    //     transactions_scroll_delta = 0;
+    // }
 }
 
 update_spendings_data :: (period_spendings: Period_Spendings, type: graph_type) -> Period_Spendings {

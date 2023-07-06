@@ -39,16 +39,18 @@ main :: () {
     update_filtered_transactions();
     
     weekly_dashboard_transactions.type = .weekly;
-    weekly_dashboard_transactions.transactions = update_transactions_on_dashboard(weekly_dashboard_transactions);
+    update_transactions_on_dashboard(*weekly_dashboard_transactions);
     
     monthly_dashboard_transactions.chosen_period = -1;
     monthly_dashboard_transactions.type = .monthly;
-    monthly_dashboard_transactions.transactions = update_transactions_on_dashboard(monthly_dashboard_transactions);    
+    update_transactions_on_dashboard(*monthly_dashboard_transactions);    
 
     ok = get_all_rules_from_db();
     if !ok return;
     rules_list.edit = -1;
     rules_list.delete = -1;
+    rules_list.category_filter = -1;
+    update_filtered_rules();
     
     // Window
     window_x, window_y := platform_get_biggest_monitor_pos();
@@ -243,11 +245,15 @@ List_Info :: struct {
     edit: int;
     add: bool;
     delete: int;
+    update: bool;
 } 
 
 rules_list : struct {
     rules: [..]Rule;
+    filtered_rules: [..]Rule;
     using info: List_Info;
+    show_category_dropdown: bool;
+    category_filter: int;
 };
 Rule :: struct {
     id: int;
@@ -258,6 +264,7 @@ new_rule := Rule.{name="", category_id=0};
 
 categories_list : struct {
     categories: [..]Category;
+    scroll_delta_dashboard: float;
     using info: List_Info;
 }
 Category :: struct {
@@ -285,6 +292,7 @@ Transactions_List :: struct {
     update: bool;
     scroll_delta: float;
     chosen_period: int;
+    subtotal: float64;
 }
 weekly_dashboard_transactions: Transactions_List;
 monthly_dashboard_transactions: Transactions_List;
