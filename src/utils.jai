@@ -86,25 +86,30 @@ get_category_name :: (category_id: int) -> string{
     return "UNCATEGORISED";
 }
 
-update_filtered_transactions :: ()  {
+update_settings_transactions :: ()  {
     array_reset_keeping_memory(*transactions_filtered);
+    total: float64;
     for tr: transactions {
         // -1: All categories 
         if (transaction_filter.category_filter == -1 || tr.category_id == transaction_filter.category_filter) && 
-            contains_nocase(tr.details, transaction_filter.transactions_search) then array_add(*transactions_filtered, tr);
+            contains_nocase(tr.details, transaction_filter.transactions_search) {
+                array_add(*transactions_filtered, tr);
+                total += tr.amount;
+            }
     }
     
-    if transaction_filter.transactions_search != "" then transactions_scroll_delta = 0;
+    if transaction_filter.transactions_search != "" then settings_transactions.scroll_delta = 0;
     
     if transaction_filter.amount_sort != .none {
         quick_sort(transactions_filtered, tr => transaction_filter.amount_sort * tr.amount);
-        transactions_scroll_delta = 0;
+        settings_transactions.scroll_delta = 0;
     } else if transaction_filter.date_sort != .none { 
         quick_sort(transactions_filtered,  compare_tr_dates);
-        transactions_scroll_delta = 0;
+        settings_transactions.scroll_delta = 0;
     }
     
-        
+    settings_transactions.subtotal = total;
+    
     compare_tr_dates :: (tr1: Transaction, tr2: Transaction) -> s64 {
         a := tr1.date; 
         b := tr2.date; 
@@ -231,7 +236,7 @@ date_string_is_valid :: (date: string) -> bool {
 
     year, day, month : int;
     year, ok = string_to_int(year_str);
-    if year < 1000 || year > 2500 return false;
+    if year < 1000 || year > 2100 return false;
     month, ok = string_to_int(month_str);
     if month < 1 || month > 12 return false;
     day, ok = string_to_int(day_str);

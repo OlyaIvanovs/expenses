@@ -164,12 +164,16 @@
 + switch between monthly and weekly: unfilter;
 + categories: check adding category bug
 + categories : Transport bug
-+ categories and rules
++ categories and rules bug
 + monthly graph: 12th month
 + show sub sum for chosen categories(?) dashboard & settings
++ rules: ad filter by category
 
-- show sub sum of filtered transactions
-- search for rules(+ add category)
+# 07/07/2023
++ show sub sum of filtered transactions
+
+
+- rules: sort by name
 - add settings_transactions struct
 - Domino's & Pierrs
 - color picker bug: dark shade
@@ -181,3 +185,6 @@
 - Dialog's inputs
 - Update style
 - remove category_id filter from graph_details. Remove graph_details (?)
+- add edit category on dashboard page
+- edit category on settings page
+- decide on adding transaction: end or begin

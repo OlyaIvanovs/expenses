@@ -297,7 +297,8 @@ upload_transactions_from_file :: (file_name: string) -> bool {
         t.date = row.fields[1];
         t.amount, ok = parse_float64(*row.fields[6]);
         if !ok then log_error("Couldn't parse amount as float: %\n", row.fields[6]);
-        t.details = row.fields[5]; 
+        details := row.fields[5]; 
+        t.details = replace(details, "'", "");
         for rule: rules_list.rules {
             if contains_nocase(t.details, rule.name) then t.category_id = rule.category_id; 
         } 

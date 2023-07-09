@@ -36,7 +36,9 @@ main :: () {
     
     ok = get_all_transactions_from_db();
     if !ok return;
-    update_filtered_transactions();
+    update_settings_transactions();
+    settings_transactions.edit = -1;
+    settings_transactions.delete = -1;
     
     weekly_dashboard_transactions.type = .weekly;
     update_transactions_on_dashboard(*weekly_dashboard_transactions);
@@ -241,7 +243,7 @@ show_all_categories_on_graph := 1;
 
 List_Info :: struct {
     scroll_delta: float;
-    scroll_delta_to_bottom: bool;
+    scroll_to_bottom: bool;
     edit: int;
     add: bool;
     delete: int;
@@ -274,6 +276,14 @@ Category :: struct {
 }
 new_category := Category.{name="", color="e3a019"};
 
+settings_transactions : struct {
+    // transactions: [..]Transaction;
+    subtotal: float64;
+    using info: List_Info;
+    remove_all: bool;
+}
+new_transaction := Transaction.{details="", note="", category_id=0, amount=0.0, date=""};
+
 transactions_raw: [..]Transaction;
 transactions_filtered: [..]Transaction;
 transactions: [..]Transaction;
@@ -285,7 +295,7 @@ Transaction :: struct {
     note: string;
     category_id: int;
 }
-new_transaction := Transaction.{details="", note="", category_id=0, amount=0.0, date=""};
+
 Transactions_List :: struct {
     transactions: [..]Transaction;
     type: graph_type;
