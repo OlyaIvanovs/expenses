@@ -1158,8 +1158,6 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
                         break;
                     }
                 }
-            } else {
-                new_transaction.category_id = 0; // UNCATEGORISED
             }
         }
         draw_text_in_rect(category_area, get_category_name(new_transaction.category_id));
@@ -1537,9 +1535,15 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
     became_active = maybe_set_hot_or_active(ui_category_id, category_area, .PRESSABLE, true);
     if is_hovering_over(ui_category_id) || ui.active_input == ui_category_id then draw_rect(category_area, Colors.SEARCH_RESULT_INACTIVE); 
 
+    // predict category based on category_filter
+    if before_category_choose && rules_list.add && rules_list.category_filter > -1 {
+        new_rule.category_id = rules_list.category_filter;
+    }
+        
     if ui.active_input == ui_category_id {
         // Draw dropdown
         should_show_category_dropdown = true;
+        before_category_choose = false;
         if enter_pressed then ui.active_input = .none;
     } else {
         should_show_category_dropdown = false;
@@ -1663,7 +1667,7 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
             draw_rect(rect, Colors.BACKGROUND_LIGHT);
         }
         draw_text_in_rect(rect,  get_category_name(new_rule.category_id));                   
-        
+                
         // Other categories go next 
         for *category, cat_index: categories_list.categories {
             if category.id == new_rule.category_id then continue;

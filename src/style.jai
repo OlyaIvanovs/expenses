@@ -100,7 +100,12 @@ color_to_hex :: (using color: Color, ignore_alpha:bool =  false) -> string /* te
     g_u8 := cast(u8)(255 * g);
     b_u8 := cast(u8)(255 * b);
     a_u8 := cast(u8)(255 * a);
-    if ignore_alpha then return tprint("%1%2%3", formatInt(r_u8, 16), formatInt(g_u8, 16), formatInt(b_u8, 16));
+    if ignore_alpha {
+        return tprint("%1%2%3", 
+            formatInt(r_u8, 16, minimum_digits=2), 
+            formatInt(g_u8, 16, minimum_digits=2), 
+            formatInt(b_u8, 16, minimum_digits=2));
+    }
     return tprint("%1%2%3%4", formatInt(r_u8, 16), formatInt(g_u8, 16), formatInt(b_u8, 16), formatInt(a_u8, 16));
 }
 

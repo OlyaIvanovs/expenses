@@ -175,13 +175,15 @@
 # 10/07/2023
 + edit rule
 + rules: sort by name
++ color picker fix
++ predict category for rule
 
 + Domino's & Pierrs
 + edit rule doesn't work
 + rules: sort by name
++ color picker bug: dark shade
 
 - add settings_transactions struct
-- color picker bug: dark shade
 - categories: do not save category without name
 - show date on week number hover 
 - date validation bug
@@ -192,3 +194,4 @@
 - remove category_id filter from graph_details. Remove graph_details (?)
 - add edit category on dashboard page
 - decide on adding transaction: end or begin
+- check rules and transactions whrn remove category
