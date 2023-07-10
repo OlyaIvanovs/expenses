@@ -179,16 +179,16 @@
 + predict category for rule
 
 # 11/07/2023
-
++ do not save catetgory and rule without name
 
 + Domino's & Pierrs
 + edit rule doesn't work
 + rules: sort by name
 + color picker bug: dark shade
 + check rules and transactions when remove category
++ categories: do not save category without name
 
 - add settings_transactions struct
-- categories: do not save category without name
 - date validation bug
 - Dropdown: Up and down
 - Error/validate/confirm message

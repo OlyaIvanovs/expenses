@@ -730,8 +730,9 @@ draw_message_popup :: () {
         max(width, min_width) + 20 * dpi_scale, 
         popup_height);
     draw_rect(rect, Colors.MESSAGE_BACKGROUND_ERROR);
-    pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
-    Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
+    draw_text_in_rect(rect, message.text, centered = true);
+    // pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
+    // Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
 }
     
 draw_scrollbar :: (wrapper: Rect, content_height: float, ui_id: Ui_Id, parent_ui_id: Ui_Id, scroll_delta: float, to_bottom: bool = false) -> float, bool {
@@ -1392,6 +1393,12 @@ draw_edit_category_dialog :: (loc := #caller_location) {
     no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);
     
     if yes_chosen {    
+        if new_category.name == "" {
+            message.show = true;
+            message.time_start = cast(Time) get_time();
+            message.text = "Please provide a category name as it cannot be left empty";
+            return;
+        }
         text_input.text.count = 0;
         new_category.color = copy_string(hsv_to_hex(color_picker.hsv));
         
@@ -1579,6 +1586,12 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
     no_chosen := maybe_set_hot_or_active(button_id, no, .PRESSABLE);
     
     if yes_chosen {    
+        if new_rule.name == "" {
+            message.show = true;
+            message.time_start = cast(Time) get_time();
+            message.text = "Please provide a rule name as it cannot be left empty";
+            return;
+        }
         edit_rule_category_id := -1;
         
         if rules_list.edit > -1 {
