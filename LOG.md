@@ -178,20 +178,23 @@
 + color picker fix
 + predict category for rule
 
+# 11/07/2023
+
+
 + Domino's & Pierrs
 + edit rule doesn't work
 + rules: sort by name
 + color picker bug: dark shade
++ check rules and transactions when remove category
 
 - add settings_transactions struct
 - categories: do not save category without name
-- show date on week number hover 
 - date validation bug
 - Dropdown: Up and down
 - Error/validate/confirm message
 - Dialog's inputs
 - Update style
 - remove category_id filter from graph_details. Remove graph_details (?)
-- add edit category on dashboard page
 - decide on adding transaction: end or begin
-- check rules and transactions whrn remove category
+? add edit category on dashboard page
+? show date on week number hover 

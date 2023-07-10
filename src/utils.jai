@@ -189,7 +189,6 @@ update_filtered_rules :: ()  {
      if rules_list.name_sort != .none { 
         quick_sort(filtered_rules, 
                     (x, y) => compare_strings(to_lower_copy(x.name), to_lower_copy(y.name)) * cast(s64) rules_list.name_sort);
-        scroll_delta = 0;
     }
 }
 

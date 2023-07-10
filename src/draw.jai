@@ -96,10 +96,10 @@ before_category_choose := true;
 
 
 set_null_state :: () {
-    settings_transactions.remove_all = false;
     should_show_category_dropdown = false;
     should_show_graph_year_dropdown = false;
     
+    settings_transactions.remove_all = false;
     settings_transactions.edit = -1;
     settings_transactions.add = false;
     settings_transactions.delete = -1;
@@ -366,7 +366,7 @@ draw_monthly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
             if mouse_pointer_is_within(rect) {
                 draw_rect(month_name_rect, Colors.BACKGROUND_HIGH_TRANSPARENT);
                 draw_text_in_rect(month_desc_rect, get_month_name(i, to_calendar(current_time_consensus()).year-j, month_total));
-                draw_pie_chart(pie_chart_rect, month_spendings, month_total);
+                // draw_pie_chart(pie_chart_rect, month_spendings, month_total);
             }
             
             if month_total == 0 {
@@ -492,7 +492,7 @@ draw_weekly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
         if mouse_pointer_is_within(week_name_rect) ||  mouse_pointer_is_within(week_rect) {
             draw_rect(week_name_rect, Colors.BACKGROUND_HIGH_TRANSPARENT);
             draw_text_in_rect(week_desc_rect, get_week_name(i, graph_details.year, weekly_total));
-            draw_pie_chart(pie_chart_rect, week_spendings, weekly_total);
+            // draw_pie_chart(pie_chart_rect, week_spendings, weekly_total);
         }
         
         if mouse_pointer_is_within(week_name_rect) && mouse.left.is_down {
@@ -1460,9 +1460,18 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
     
     if yes_chosen if mode == {
         case "category"; 
-            ok := delete_category_from_db(categories_list.categories[categories_list.delete].id);
+            category_id := categories_list.categories[categories_list.delete].id;
+            ok := delete_category_from_db(category_id);
             if !ok then return;
             array_ordered_remove_by_index(*categories_list.categories, categories_list.delete);
+            for *rule: rules_list.rules {
+                if rule.category_id == category_id {
+                    rule.category_id = 0;
+                    ok := add_rule_to_db(rule.name,  rule.category_id);
+                    if !ok then return;
+                }
+            }
+            rules_list.update = true;
             set_null_state();
         case "transaction";
             ok := delete_transaction_from_db(settings_transactions.delete);
@@ -1581,7 +1590,6 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
             }
         }
         
-    
         for *tr: transactions {
             if contains_nocase(tr.details, new_rule.name) { 
                 tr.category_id = new_rule.category_id; 
@@ -1616,7 +1624,6 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
             if !ok then return;
             array_add(*rules_list.rules, new_rule);
             rules_list.scroll_to_bottom = true;
-            
         } else if rules_list.edit > -1 {
             ok := add_rule_to_db(new_rule.id, new_rule.name,  new_rule.category_id);
             if !ok then return;   
@@ -1670,7 +1677,7 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
                 
         // Other categories go next 
         for *category, cat_index: categories_list.categories {
-            if category.id == new_rule.category_id then continue;
+            if category.id == new_rule.category_id  continue;
             rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
             category_line_id := get_ui_id_from_loc_with_index(dropdown_id, cat_index);
             
@@ -1978,7 +1985,6 @@ draw_categories_dropdown :: (r: Rect, category_filter: int) -> int{
             dropdown_scroll_delta = 0;
             settings_transactions.update = true;
             rules_list.update = true;
-            rules_list.scroll_delta = 0;
         }
         
         draw_text_in_rect(rect, category.name);
