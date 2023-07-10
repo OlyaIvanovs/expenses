@@ -724,7 +724,11 @@ draw_message_popup :: () {
     popup_height := 50 * dpi_scale;
     min_width := 400 * dpi_scale;
     width := cast(float) Simp.prepare_text(font, message.text);
-    rect := make_rect((window_width - max(width, min_width))/2, window_height - popup_height, max(width, min_width) + 20 * dpi_scale, popup_height);
+    rect := make_rect(
+        (window_width - max(width, min_width))/2, 
+        window_height - popup_height, 
+        max(width, min_width) + 20 * dpi_scale, 
+        popup_height);
     draw_rect(rect, Colors.MESSAGE_BACKGROUND_ERROR);
     pen := make_vector2(rect.x + 5 * dpi_scale, rect.y + (rect.h - font.character_height) / 2 + 2 * dpi_scale);
     Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
@@ -734,13 +738,12 @@ draw_scrollbar :: (wrapper: Rect, content_height: float, ui_id: Ui_Id, parent_ui
     if content_height <= wrapper.h then return scroll_delta, to_bottom;
     if to_bottom then scroll_delta = content_height - wrapper.h;
     
-    scroll_area    := cut_right(wrapper, 10 * dpi_scale);
-    scrollbar_line := cut_right(scroll_area, 2 * dpi_scale);
-    
-    scrollbar := scroll_area;
-    scrollbar.h = floor(scroll_area.h * scroll_area.h / content_height); 
+    scroll_area      := cut_right(wrapper, 10 * dpi_scale);
+    scrollbar_line   := cut_right(scroll_area, 2 * dpi_scale);    
+    scrollbar        := scroll_area;
+    scrollbar.h       = floor(scroll_area.h * scroll_area.h / content_height); 
     percent_scrolled := scroll_delta / content_height;
-    scrollbar.y = scroll_area.y + scroll_area.h - scroll_area.h * percent_scrolled - scrollbar.h;
+    scrollbar.y       = scroll_area.y + scroll_area.h - scroll_area.h * percent_scrolled - scrollbar.h;
              
     maybe_set_hot_or_active(ui_id, scroll_area, .PRESSABLE, false);
     
@@ -1015,12 +1018,12 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     ui_id := get_ui_id_from_loc();  
     maybe_set_hot_or_active(ui_id, dialog, .NORMAL);
     
-    pad, dialog = cut_top(dialog, 16 * dpi_scale);
-    date_area, dialog = cut_top(dialog, LINE_HEIGHT);
-    details_area, dialog = cut_top(dialog, LINE_HEIGHT);
-    amount_area, dialog = cut_top(dialog, LINE_HEIGHT);
+    pad, dialog           = cut_top(dialog, 16 * dpi_scale);
+    date_area, dialog     = cut_top(dialog, LINE_HEIGHT);
+    details_area, dialog  = cut_top(dialog, LINE_HEIGHT);
+    amount_area, dialog   = cut_top(dialog, LINE_HEIGHT);
     category_area, dialog = cut_top(dialog, LINE_HEIGHT);
-    note_area, dialog = cut_top(dialog, LINE_HEIGHT);
+    note_area, dialog     = cut_top(dialog, LINE_HEIGHT);
 
     // Transaction's date
     tr_date_id := get_ui_id_from_loc();
@@ -1089,7 +1092,9 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     // Transaction's note
     tr_note_id := get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(tr_note_id, note_area, .PRESSABLE, true);
-    if is_hovering_over(tr_note_id) || ui.active_input == tr_note_id then draw_rect(note_area, Colors.SEARCH_RESULT_INACTIVE );
+    if is_hovering_over(tr_note_id) || ui.active_input == tr_note_id { 
+        draw_rect(note_area, Colors.SEARCH_RESULT_INACTIVE );
+    }
 
     if ui.active_input == tr_note_id {
         if became_active {
@@ -1102,14 +1107,20 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
         if enter_pressed then ui.active_input = .none;
         new_transaction.note = copy_string(cast(string) text_input.text);
     } else {
-        if new_transaction.note == "" then draw_text_in_rect(note_area, "No note for the transaction", Colors.UI_DIM); else draw_text_in_rect(note_area, new_transaction.note);
+        if new_transaction.note == "" {
+            draw_text_in_rect(note_area, "No note for the transaction", Colors.UI_DIM);
+        } else {
+            draw_text_in_rect(note_area, new_transaction.note);
+        }
     }
     
     // Transaction's amount
     amount := tprint("%", formatFloat(new_transaction.amount, trailing_width=2, zero_removal=.NO));
     tr_amount_id := get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(tr_amount_id, amount_area, .PRESSABLE, true);
-    if is_hovering_over(tr_amount_id) || ui.active_input == tr_amount_id then draw_rect(amount_area, Colors.SEARCH_RESULT_INACTIVE );
+    if is_hovering_over(tr_amount_id) || ui.active_input == tr_amount_id {
+        draw_rect(amount_area, Colors.SEARCH_RESULT_INACTIVE );
+    }
     if ui.active_input == tr_amount_id {
         if became_active {
             array_resize(*text_input.text, amount.count);
@@ -1128,7 +1139,9 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     // Transaction's category
     tr_category_id := get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(tr_category_id, category_area, .PRESSABLE, true);
-    if is_hovering_over(tr_category_id) || ui.active_input == tr_category_id then draw_rect(category_area, Colors.SEARCH_RESULT_INACTIVE); 
+    if is_hovering_over(tr_category_id) || ui.active_input == tr_category_id { 
+        draw_rect(category_area, Colors.SEARCH_RESULT_INACTIVE); 
+    }
 
     if ui.active_input == tr_category_id {
         // Draw dropdown
@@ -1555,6 +1568,18 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
     no_chosen := maybe_set_hot_or_active(button_id, no, .PRESSABLE);
     
     if yes_chosen {    
+        edit_rule_category_id := -1;
+        
+        if rules_list.edit > -1 {
+            for r: rules_list.rules {
+                 if r.id == rules_list.edit {
+                    edit_rule_category_id = r.category_id;
+                    break;
+                }
+            }
+        }
+        
+    
         for *tr: transactions {
             if contains_nocase(tr.details, new_rule.name) { 
                 tr.category_id = new_rule.category_id; 
@@ -1562,19 +1587,22 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
                 continue;
             }
             
-            if rules_list.edit > -1 {
-                if tr.category_id != rules_list.rules[rules_list.edit].category_id continue;
-                for r: rules_list.rules {
-                    if contains_nocase(tr.details, r.name) { 
-                        tr.category_id = r.category_id; 
-                        add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
-                        continue tr;
-                    }
+            if rules_list.edit <= -1 continue; 
+            if tr.category_id != edit_rule_category_id continue;
+
+            for r: rules_list.rules {
+                if r.id == rules_list.edit continue;  
+                if contains_nocase(tr.details, r.name) {
+                     tr.category_id = r.category_id;
+                     print("tr.category_id %\n", tr.category_id);
+                     add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
+                     continue tr;
                 }
-                tr.category_id = 0; // no match, set category to "UNCATEGORISED" 
-                add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
             }
+            tr.category_id = 0; // no match, set category to "UNCATEGORISED" 
+            add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
         }
+        
         text_input.text.count = 0;
         settings_transactions.update = true;
         rules_list.update = true;
@@ -1591,7 +1619,12 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
         } else if rules_list.edit > -1 {
             ok := add_rule_to_db(new_rule.id, new_rule.name,  new_rule.category_id);
             if !ok then return;   
-            rules_list.rules[rules_list.edit] = new_rule;
+            for *rule : rules_list.rules {
+                if rule.id == rules_list.edit {
+                    <<rule = new_rule;                            
+                    break;
+                }
+            }
         }
         set_null_state();
     } else if no_chosen {
@@ -1600,8 +1633,7 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
  
     // Draw dropdown
     if should_show_category_dropdown {
-        wrapper := category_area;
-        wrapper.h = min(categories_list.categories.count, 5) * LINE_HEIGHT;
+        wrapper := category_area; wrapper.h = min(categories_list.categories.count, 5) * LINE_HEIGHT;
         wrapper.y = category_area.y + category_area.h - wrapper.h;
         
         dropdown_id := get_ui_id_from_loc();
