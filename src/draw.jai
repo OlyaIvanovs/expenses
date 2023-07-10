@@ -906,14 +906,12 @@ draw_rules :: (r: Rect) {
     draw_text_in_rect(name_rect, "Name", Colors.BACKGROUND_BRIGHT);
     draw_icon(0xf07d, icon_rect, Colors.BACKGROUND_BRIGHT);
     if became_active {
-        print("ACTIVE");
-        // transaction_filter.amount_sort = .none;
-        // if transaction_filter.date_sort == {
-        //     case .none;       transaction_filter.date_sort = .ascending;
-        //     case .ascending;  transaction_filter.date_sort = .descending;
-        //     case .descending; transaction_filter.date_sort = .ascending;
-        // }
-        // update_transactions = true;
+        if rules_list.name_sort == {
+            case .none;       rules_list.name_sort = .ascending;
+            case .ascending;  rules_list.name_sort = .descending;
+            case .descending; rules_list.name_sort = .ascending;
+        }
+        rules_list.update = true;
     }
     
     add_rule_button, wrapper := cut_bottom(rules_rect, LINE_HEIGHT + padding);
@@ -1594,7 +1592,6 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
                 if r.id == rules_list.edit continue;  
                 if contains_nocase(tr.details, r.name) {
                      tr.category_id = r.category_id;
-                     print("tr.category_id %\n", tr.category_id);
                      add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
                      continue tr;
                 }

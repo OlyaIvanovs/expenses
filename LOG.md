@@ -174,16 +174,18 @@
 
 # 10/07/2023
 + edit rule
++ rules: sort by name
 
 + Domino's & Pierrs
 + edit rule doesn't work
-- rules: sort by name
++ rules: sort by name
+
 - add settings_transactions struct
 - color picker bug: dark shade
 - categories: do not save category without name
 - show date on week number hover 
 - date validation bug
-- Dpopdown: Up and down
+- Dropdown: Up and down
 - Error/validate/confirm message
 - Dialog's inputs
 - Update style

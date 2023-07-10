@@ -52,6 +52,7 @@ main :: () {
     rules_list.edit = -1;
     rules_list.delete = -1;
     rules_list.category_filter = -1;
+    rules_list.name_sort = .ascending;
     update_filtered_rules();
     
     // Window
@@ -256,6 +257,7 @@ rules_list : struct {
     using info: List_Info;
     show_category_dropdown: bool;
     category_filter: int;
+    name_sort: sort_direction;
 };
 Rule :: struct {
     id: int;

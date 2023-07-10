@@ -186,14 +186,13 @@ update_filtered_rules :: ()  {
         }
     }
     
-    // if transaction_filter.amount_sort != .none {
-    //     quick_sort(transactions_filtered, tr => transaction_filter.amount_sort * tr.amount);
-    //     transactions_scroll_delta = 0;
-    // } else if transaction_filter.date_sort != .none { 
-    //     quick_sort(transactions_filtered,  compare_tr_dates);
-    //     transactions_scroll_delta = 0;
-    // }
+     if rules_list.name_sort != .none { 
+        quick_sort(filtered_rules, 
+                    (x, y) => compare_strings(to_lower_copy(x.name), to_lower_copy(y.name)) * cast(s64) rules_list.name_sort);
+        scroll_delta = 0;
+    }
 }
+
 
 update_spendings_data :: (period_spendings: Period_Spendings, type: graph_type) -> Period_Spendings {
     s := period_spendings;
