@@ -234,11 +234,11 @@ date_string_is_valid :: (date: string) -> bool {
 
     year, day, month : int;
     year, ok = string_to_int(year_str);
-    if year < 1000 || year > 2100 return false;
+    if year < 1900 || year > 2100 return false;
     month, ok = string_to_int(month_str);
     if month < 1 || month > 12 return false;
     day, ok = string_to_int(day_str);
-    if day < 1 && day > 31 return false;
+    if day < 1 || day > 31 return false;
     if (month == 4 || month == 6 || month == 9 || month == 11) && day > 30 {
         return false;
     } else if month == 2 {

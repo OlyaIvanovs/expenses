@@ -13,6 +13,11 @@ draw_one_frame :: () {
     draw_rect(tabs_rect, Colors.BACKGROUND_DARK);
     
     
+    if enter_pressed {
+        ui.last_active_input =  ui.active_input;
+        ui.active_input = .none;
+    }
+    
     if program_state == {
         case .dashboard;        draw_dashboard(main_area);
         // case .something_else;
@@ -123,6 +128,8 @@ set_null_state :: () {
     
     before_category_choose = true; 
     text_input.text.count = 0;
+    
+    message.show = false;
 }
 
 draw_dashboard :: (main_area: Rect) {
@@ -451,7 +458,6 @@ draw_weekly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
     draw_icon(0xf107, icon_rect);
     if ui.active_input == year_dropdown_id {
         should_show_graph_year_dropdown = true;
-        if enter_pressed then ui.active_input = .none;
     } else {
         should_show_graph_year_dropdown = false;
     }
@@ -1030,27 +1036,13 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     became_active := maybe_set_hot_or_active(tr_date_id, date_area, .PRESSABLE, true);
     if is_hovering_over(tr_date_id) || ui.active_input == tr_date_id then draw_rect(date_area, Colors.SEARCH_RESULT_INACTIVE );
     
-    // Validate date on enter
-    if enter_pressed && ui.last_active_input == tr_date_id && ui.active_input == .none {
-        new_date := cast(string) text_input.text;
+    if ui.last_active_input == tr_date_id && ui.active_input != tr_date_id {
+        new_date := new_transaction.date;
         ok := date_string_is_valid(new_date);
         if !ok {
             message.show = true;
             message.text = "Date Validation Error: Please enter the date in the format YYYY/MM/DD.";
             message.time_start = cast(Time) get_time();
-            if settings_transactions.edit {
-                for *t, index : transactions {
-                    if t.id == settings_transactions.edit {
-                        new_transaction.date = t.date;                          
-                        break;
-                    }
-                } 
-            }
-            if settings_transactions.add || new_transaction.date == "" {
-                new_transaction.date = copy_string(today_to_string());
-            }            
-        } else {
-            new_transaction.date = copy_string(new_date);   
         }
     }
     
@@ -1062,6 +1054,7 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
         input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
         input_rect := cut_top(date_area, input_height);
         draw_text_input(*text_input, input_rect, tr_date_id);
+        new_transaction.date = copy_string(cast(string) text_input.text);
     } else {
         draw_text_in_rect(date_area, new_transaction.date);
     }
@@ -1078,7 +1071,6 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
         input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
         input_rect := cut_top(details_area, input_height);
         draw_text_input(*text_input, input_rect, tr_details_id);
-        if enter_pressed then ui.active_input = .none;
         new_transaction.details = copy_string(cast(string) text_input.text);
     } else {
         if new_transaction.details == "" {
@@ -1103,7 +1095,6 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
         input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
         input_rect := cut_top(note_area, input_height);
         draw_text_input(*text_input, input_rect, tr_note_id);
-        if enter_pressed then ui.active_input = .none;
         new_transaction.note = copy_string(cast(string) text_input.text);
     } else {
         if new_transaction.note == "" {
@@ -1128,7 +1119,6 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
         input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
         input_rect := cut_top(amount_area, input_height);
         draw_text_input(*text_input, input_rect, tr_amount_id);
-        if enter_pressed then  ui.active_input = .none; 
         amount_parsed, ok := parse_float64(*cast(string) text_input.text);
         if ok then new_transaction.amount = amount_parsed;
     } else {
@@ -1146,7 +1136,6 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
         // Draw dropdown
         should_show_category_dropdown = true;
         before_category_choose = false;
-        if enter_pressed then ui.active_input = .none;
     } else {
         should_show_category_dropdown = false;
         
@@ -1247,6 +1236,14 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     if yes_chosen {   
         text_input.text.count = 0;
         
+        ok := date_string_is_valid(new_transaction.date);
+        if !ok {
+            message.show = true;
+            message.text = "Date Validation Error: Please enter the date in the format YYYY/MM/DD.";
+            message.time_start = cast(Time) get_time();
+            return;
+        }
+        
         if settings_transactions.add {
             id, ok := add_transaction_to_db(
                 new_transaction.date, new_transaction.amount, new_transaction.details, new_transaction.note, new_transaction.category_id);
@@ -1296,7 +1293,6 @@ draw_edit_category_dialog :: (loc := #caller_location) {
         input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
         input_rect := cut_top(name_area, input_height);
         draw_text_input(*text_input, input_rect, ui_id);
-        if enter_pressed then ui.active_input = .none;
         new_category.name = copy_string(cast(string) text_input.text);
     } else {
         if new_category.name == "" then draw_text_in_rect(name_area, "Add category name", Colors.UI_DIM); else draw_text_in_rect(name_area, new_category.name);  
@@ -1539,7 +1535,6 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
         input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
         input_rect := cut_top(details_area, input_height);
         draw_text_input(*text_input, input_rect, ui_details_id);
-        if enter_pressed then ui.active_input = .none;
         new_rule.name = copy_string(cast(string) text_input.text);
     } else {
         if new_rule.name == "" then draw_text_in_rect(details_area, "Add rule details", Colors.UI_DIM); else draw_text_in_rect(details_area, new_rule.name); 
@@ -1560,7 +1555,6 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
         // Draw dropdown
         should_show_category_dropdown = true;
         before_category_choose = false;
-        if enter_pressed then ui.active_input = .none;
     } else {
         should_show_category_dropdown = false;
         draw_text_in_rect(category_area, get_category_name(new_rule.category_id));
@@ -1894,7 +1888,6 @@ draw_settings_transactions :: (r: Rect) {
     if ui.active_input == category_filter_id {
         // Draw dropdown
         should_show_category_dropdown = true;
-        if enter_pressed then ui.active_input = .none;
     } else {
         should_show_category_dropdown = false;
     }
@@ -1947,8 +1940,6 @@ draw_settings_transactions :: (r: Rect) {
         draw_text_in_rect(rect, transaction_filter.transactions_search, Colors.UI_DIM);
     }
     
-    if enter_pressed then ui.active_input = .none;
-
     // Draw dropdown
     if should_show_category_dropdown {
         transaction_filter.category_filter = draw_categories_dropdown(category_filter, transaction_filter.category_filter);
@@ -2171,6 +2162,7 @@ set_max_size_button :: (r: Rect) -> Rect {
     return button;
 }
 
+
 maybe_set_hot_or_active :: (ui_id: Ui_Id, rect: Rect, pointer_image: Pointer_Image) -> became_active: bool {
     if !mouse_pointer_is_within(rect) return false;
 
@@ -2194,8 +2186,8 @@ maybe_set_hot_or_active :: (ui_id: Ui_Id, rect: Rect, pointer_image: Pointer_Ima
     if ui.hot_last_frame == ui_id && ui.active == .none && mouse.left.just_pressed {
         ui.active = ui_id;
         if is_input {
+            ui.last_active_input = ui.active_input;
             ui.active_input = ui_id; 
-            ui.last_active_input = ui_id;
         }
         return true;
     }

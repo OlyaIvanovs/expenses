@@ -180,6 +180,7 @@
 
 # 11/07/2023
 + do not save catetgory and rule without name
++ fix date validation
 
 + Domino's & Pierrs
 + edit rule doesn't work
@@ -187,9 +188,9 @@
 + color picker bug: dark shade
 + check rules and transactions when remove category
 + categories: do not save category without name
++ date validation bug
 
 - add settings_transactions struct
-- date validation bug
 - Dropdown: Up and down
 - Error/validate/confirm message
 - Dialog's inputs
