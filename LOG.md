@@ -182,6 +182,9 @@
 + do not save catetgory and rule without name
 + fix date validation
 
+# 12/07/2023
++ settings_transactions struct
+
 + Domino's & Pierrs
 + edit rule doesn't work
 + rules: sort by name
@@ -189,10 +192,9 @@
 + check rules and transactions when remove category
 + categories: do not save category without name
 + date validation bug
++ add settings_transactions struct
 
 - Dropdown: Up and down
-- remove category_id filter from graph_details. Remove graph_details (?)
-- add settings_transactions struct
 - Dialog's inputs
 - decide on adding transaction: end or begin/ remove to_bottom
 - Update style

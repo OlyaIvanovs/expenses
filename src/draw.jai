@@ -92,17 +92,13 @@ draw_one_frame :: () {
     Simp.swap_buffers(window);
 }
 
-
 scrollbar_grab_point :float = 0;
 dropdown_scroll_delta :float = 0;
-should_show_category_dropdown := false;
-should_show_graph_year_dropdown := false;
+should_show_dropdown := false;
 before_category_choose := true; 
 
-
 set_null_state :: () {
-    should_show_category_dropdown = false;
-    should_show_graph_year_dropdown = false;
+    should_show_dropdown = false;
     
     settings_transactions.remove_all = false;
     settings_transactions.edit = -1;
@@ -293,13 +289,13 @@ draw_dashboard_categories :: (r: Rect) {
             
             if show_on_graph && category.id != -1 {
                 table_set(*show_categories_table, category.id, false);
-                show_all_categories_on_graph -= 1;
+                graph_details.show_all_categories -= 1;
             } else {
                 if category.id == -1 {
-                    show_all_categories_on_graph = 1;
+                    graph_details.show_all_categories = 1;
                     for categories_list.categories table_set(*show_categories_table, it.id, false);
                 } else {
-                    show_all_categories_on_graph += 1;
+                    graph_details.show_all_categories += 1;
                     table_set(*show_categories_table, category.id, true);
                 }
             }
@@ -318,7 +314,7 @@ draw_dashboard_categories :: (r: Rect) {
     category_line_id := get_ui_id_from_loc_with_index(ui_id, categories_list.categories.count);
     rect, categories_rect = cut_top(categories_rect, LINE_HEIGHT);
     category := Category.{name="All categories", id=-1, color="e3a019"};
-    if show_all_categories_on_graph == 1 {
+    if graph_details.show_all_categories == 1 {
         table_set(*show_categories_table, category.id, true);
     } else {
         table_set(*show_categories_table, category.id, false);
@@ -463,9 +459,9 @@ draw_weekly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
     year_dropdown, icon_rect := cut_left(year_dropdown_w, 60 * dpi_scale); 
     draw_icon(0xf107, icon_rect);
     if ui.active_input == year_dropdown_id {
-        should_show_graph_year_dropdown = true;
+        should_show_dropdown = true;
     } else {
-        should_show_graph_year_dropdown = false;
+        should_show_dropdown = false;
     }
     
     draw_text_in_rect(year_dropdown, tprint("%", graph_details.year));
@@ -510,7 +506,7 @@ draw_weekly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
         if mouse_pointer_is_within(week_name_rect) && mouse.left.is_down {
             array_reset_keeping_memory(*weekly_dashboard_transactions.transactions);
             get_filtered_transactions_from_db(-1, to_calendar(current_time_consensus()).year-graph_details.year, i*7);
-            if show_all_categories_on_graph != 1 {
+            if graph_details.show_all_categories != 1 {
                 for tr, i: weekly_dashboard_transactions.transactions {
                     show_on_graph, found := table_find(*show_categories_table, tr.category_id);
                     if !show_on_graph then remove tr;
@@ -568,7 +564,7 @@ draw_weekly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
     year_options := int.[2023, 2022, 2021];
     
     // Draw dropdown
-    if should_show_graph_year_dropdown {
+    if should_show_dropdown {
         wrapper := year_dropdown_w;
         wrapper.h = min(year_options.count-1, 5) * LINE_HEIGHT;
         wrapper.y = year_dropdown.y - wrapper.h;
@@ -901,9 +897,9 @@ draw_rules :: (r: Rect) {
     draw_icon(0xf107, icon_rect, Colors.BACKGROUND_BRIGHT);
     if ui.active_input == category_filter_id {
         // Draw dropdown
-        rules_list.show_category_dropdown = true;
+        should_show_dropdown = true;
     } else {
-        rules_list.show_category_dropdown = false;
+        should_show_dropdown = false;
     }
     
     if rules_list.category_filter > -1 {
@@ -996,7 +992,7 @@ draw_rules :: (r: Rect) {
     if became_active then rules_list.add = true;
     draw_button(add_rule_button, "Add a new rule");
     
-    if rules_list.show_category_dropdown {
+    if should_show_dropdown {
         rules_list.category_filter = draw_categories_dropdown(category_filter, rules_list.category_filter);
     }
     
@@ -1140,10 +1136,10 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
 
     if ui.active_input == tr_category_id {
         // Draw dropdown
-        should_show_category_dropdown = true;
+        should_show_dropdown = true;
         before_category_choose = false;
     } else {
-        should_show_category_dropdown = false;
+        should_show_dropdown = false;
         
         // Predict transaction's category
         if before_category_choose && settings_transactions.add  {
@@ -1179,7 +1175,7 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);    
     
     // Draw dropdown
-    if should_show_category_dropdown {
+    if should_show_dropdown {
         wrapper := category_area;
         wrapper.h = min(categories_list.categories.count, 5) * LINE_HEIGHT;;
         wrapper.y = category_area.y + category_area.h - wrapper.h;
@@ -1255,14 +1251,14 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
                 new_transaction.date, new_transaction.amount, new_transaction.details, new_transaction.note, new_transaction.category_id);
             if !ok then return;  
             new_transaction.id = id;
-            array_add(*transactions, new_transaction);
+            array_add(*settings_transactions.transactions, new_transaction);
             settings_transactions.scroll_to_bottom = true;
         } else if settings_transactions.edit > -1 { 
             ok := add_transaction_to_db(new_transaction.id, new_transaction.date, new_transaction.amount, new_transaction.details, new_transaction.note, new_transaction.category_id);
             if !ok then return;   
-            for *t, index : transactions {
+            for *t, index : settings_transactions.transactions {
                 if t.id == settings_transactions.edit {
-                    transactions[index] = new_transaction;                            
+                    settings_transactions.transactions[index] = new_transaction;                            
                     break;
                 }
             }     
@@ -1440,7 +1436,7 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
         case "all_transactions"; 
             text = tprint("Are you sure you want to remove all transactions?");
         case "transaction";
-            for tr: transactions {
+            for tr: settings_transactions.transactions {
                 if tr.id == settings_transactions.delete {
                     text = tprint("Are you sure you want to remove transaction '%'?", tr.details);
                     break;
@@ -1486,9 +1482,9 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
         case "transaction";
             ok := delete_transaction_from_db(settings_transactions.delete);
             if !ok then return;
-            for tr, index: transactions {
+            for tr, index: settings_transactions.transactions {
                 if tr.id == settings_transactions.delete {
-                    array_ordered_remove_by_index(*transactions, index);
+                    array_ordered_remove_by_index(*settings_transactions.transactions, index);
                 }
             }
             settings_transactions.update = true;
@@ -1503,7 +1499,7 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
                     array_ordered_remove_by_index(*rules_list.rules, index);
                 }
             }
-            for *tr: transactions {
+            for *tr: settings_transactions.transactions {
                 if tr.category_id == category {
                     tr.category_id = 0;
                     add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
@@ -1515,7 +1511,7 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
         case "all_transactions";
             ok := delete_all_transaction_from_db();
             if !ok then return;
-            transactions.count = 0;
+            settings_transactions.transactions.count = 0;
             settings_transactions.update = true;
     } else  if no_chosen {
         set_null_state();
@@ -1560,10 +1556,10 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
         
     if ui.active_input == ui_category_id {
         // Draw dropdown
-        should_show_category_dropdown = true;
+        should_show_dropdown = true;
         before_category_choose = false;
     } else {
-        should_show_category_dropdown = false;
+        should_show_dropdown = false;
         draw_text_in_rect(category_area, get_category_name(new_rule.category_id));
     }
     
@@ -1604,7 +1600,7 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
             }
         }
         
-        for *tr: transactions {
+        for *tr: settings_transactions.transactions {
             if contains_nocase(tr.details, new_rule.name) { 
                 tr.category_id = new_rule.category_id; 
                 add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
@@ -1654,7 +1650,7 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
     }
  
     // Draw dropdown
-    if should_show_category_dropdown {
+    if should_show_dropdown {
         wrapper := category_area; wrapper.h = min(categories_list.categories.count, 5) * LINE_HEIGHT;
         wrapper.y = category_area.y + category_area.h - wrapper.h;
         
@@ -1728,7 +1724,7 @@ prepare_trash_icon :: () -> float {
 
 draw_settings_transactions :: (r: Rect) {
     date_rect, details_rect, amount_rect, category_rect, icons_rect, icon_rect, rect, pad, category_filter, subtotal_rect: Rect; 
-    count := transactions_filtered.count;
+    count := settings_transactions.transactions_filtered.count;
         
     content_height := count * LINE_HEIGHT;
     transactions_rect := draw_title(r, tprint("Transactions (%)", count));
@@ -1761,7 +1757,7 @@ draw_settings_transactions :: (r: Rect) {
     trash_icon_unicode := 0xf1f8;
     trash_icon_char := convert_utf32_to_utf8(xx trash_icon_unicode);
           
-    for tr, tr_index: transactions_filtered {
+    for tr, tr_index: settings_transactions.transactions_filtered {
         rect, transactions_rect = cut_top(transactions_rect, LINE_HEIGHT);
         
         draw_rect(rect, Colors.BACKGROUND_LIGHT); 
@@ -1793,7 +1789,7 @@ draw_settings_transactions :: (r: Rect) {
         // Edit transaction
         if became_active && settings_transactions.delete < 0 {
             settings_transactions.edit = tr.id;
-            for t: transactions {
+            for t: settings_transactions.transactions {
                 if t.id == tr.id {
                     new_transaction = t;
                     break;
@@ -1851,7 +1847,7 @@ draw_settings_transactions :: (r: Rect) {
         settings_transactions.update = true;
     }
     
-    if transactions_filtered.count > 0 {
+    if settings_transactions.transactions_filtered.count > 0 {
         draw_button(remove_all_button, "Remove all transactions");
         remove_all_tr_id := get_ui_id_from_loc();
         became_active = maybe_set_hot_or_active(remove_all_tr_id, remove_all_button, .PRESSABLE);
@@ -1867,7 +1863,6 @@ draw_settings_transactions :: (r: Rect) {
     }
     
      // Filter && Sort
-    
     // Date Sort
     date_rect, transactions_filter_panel = cut_left(transactions_filter_panel, 150 * dpi_scale);
     date_filter_id := get_ui_id_from_loc();
@@ -1876,11 +1871,11 @@ draw_settings_transactions :: (r: Rect) {
     draw_text_in_rect(date_rect, "Date", Colors.BACKGROUND_BRIGHT);
     draw_icon(0xf07d, icon_rect, Colors.BACKGROUND_BRIGHT);
     if became_active {
-        transaction_filter.amount_sort = .none;
-        if transaction_filter.date_sort == {
-            case .none;       transaction_filter.date_sort = .ascending;
-            case .ascending;  transaction_filter.date_sort = .descending;
-            case .descending; transaction_filter.date_sort = .ascending;
+        settings_transactions.filter.amount_sort = .none;
+        if settings_transactions.filter.date_sort == {
+            case .none;       settings_transactions.filter.date_sort = .ascending;
+            case .ascending;  settings_transactions.filter.date_sort = .descending;
+            case .descending; settings_transactions.filter.date_sort = .ascending;
         }
         settings_transactions.update = true;
     }
@@ -1894,13 +1889,13 @@ draw_settings_transactions :: (r: Rect) {
     draw_icon(0xf107, icon_rect, Colors.BACKGROUND_BRIGHT);
     if ui.active_input == category_filter_id {
         // Draw dropdown
-        should_show_category_dropdown = true;
+        should_show_dropdown = true;
     } else {
-        should_show_category_dropdown = false;
+        should_show_dropdown = false;
     }
     
-    if transaction_filter.category_filter > -1 {
-        draw_text_in_rect(category_filter, get_category_name(transaction_filter.category_filter), Colors.BACKGROUND_BRIGHT);
+    if settings_transactions.filter.category_filter > -1 {
+        draw_text_in_rect(category_filter, get_category_name(settings_transactions.filter.category_filter), Colors.BACKGROUND_BRIGHT);
     } else {
         draw_text_in_rect(category_filter, "Category", Colors.BACKGROUND_BRIGHT);
     }
@@ -1913,11 +1908,11 @@ draw_settings_transactions :: (r: Rect) {
     draw_text_in_rect(amount_rect, "Amount", Colors.BACKGROUND_BRIGHT);
     draw_icon(0xf07d, icon_rect, Colors.BACKGROUND_BRIGHT);
     if became_active {
-        transaction_filter.date_sort = .none;
-        if transaction_filter.amount_sort == {
-            case .none;       transaction_filter.amount_sort = .ascending;
-            case .ascending;  transaction_filter.amount_sort = .descending;
-            case .descending; transaction_filter.amount_sort = .ascending;
+        settings_transactions.filter.date_sort = .none;
+        if settings_transactions.filter.amount_sort == {
+            case .none;       settings_transactions.filter.amount_sort = .ascending;
+            case .ascending;  settings_transactions.filter.amount_sort = .descending;
+            case .descending; settings_transactions.filter.amount_sort = .ascending;
         }
         settings_transactions.update = true;
     }
@@ -1937,19 +1932,20 @@ draw_settings_transactions :: (r: Rect) {
     if ui.active_input == tr_filter_id {
         draw_text_input(*text_input, input_rect, tr_filter_id, Colors.UI_DIM);
         if key_pressed {
-            transaction_filter.transactions_search = copy_string(cast(string) text_input.text);
+            settings_transactions.filter.transactions_search = copy_string(cast(string) text_input.text);
             settings_transactions.update = true;
         } 
     } else {
         rect := snap_to_grid(input_rect);
         draw_rect(rect, Colors.BACKGROUND);
         draw_line_separator(rect);
-        draw_text_in_rect(rect, transaction_filter.transactions_search, Colors.UI_DIM);
+        draw_text_in_rect(rect, settings_transactions.filter.transactions_search, Colors.UI_DIM);
     }
     
     // Draw dropdown
-    if should_show_category_dropdown {
-        transaction_filter.category_filter = draw_categories_dropdown(category_filter, transaction_filter.category_filter);
+    if should_show_dropdown {
+        settings_transactions.filter.category_filter = 
+            draw_categories_dropdown(category_filter, settings_transactions.filter.category_filter);
     }
 }
 

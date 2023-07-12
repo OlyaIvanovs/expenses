@@ -16,16 +16,11 @@ main :: () {
     
     ok = get_all_categories_from_db();
     if !ok return;
-    categories_list.edit = -1;
-    categories_list.delete = -1;
     update_categories();
     
     for categories_list.categories table_set(*show_categories_table, it.id, false);
     
-    current_year = to_calendar(current_time_consensus()).year;
-    graph_details.year = current_year;
-    graph_details.category_id = -1;
-    graph_details.type = .weekly;
+    graph_details.year = to_calendar(current_time_consensus()).year;
     
     daily_spendings, ok = get_daily_spendings(0);
     if !ok return;
@@ -38,22 +33,15 @@ main :: () {
     ok = get_all_transactions_from_db();
     if !ok return;
     update_settings_transactions();
-    settings_transactions.edit = -1;
-    settings_transactions.delete = -1;
     
     weekly_dashboard_transactions.type = .weekly;
     update_transactions_on_dashboard(*weekly_dashboard_transactions);
     
-    monthly_dashboard_transactions.chosen_period = -1;
     monthly_dashboard_transactions.type = .monthly;
     update_transactions_on_dashboard(*monthly_dashboard_transactions);    
 
     ok = get_all_rules_from_db();
     if !ok return;
-    rules_list.edit = -1;
-    rules_list.delete = -1;
-    rules_list.category_filter = -1;
-    rules_list.name_sort = .ascending;
     update_filtered_rules();
     
     // Window
@@ -203,9 +191,6 @@ panic :: (format_string: string, args: .. Any, exit_code : s32 = 1) {
 } @PrintLike
 
 CIRCLE_RESOLUTION :: 100;
-show_categories_table: Table(int, bool);
-daily_spendings: Period_Spendings;
-monthly_spendings: Period_Spendings;
 
 window_width : s32 = 1920;
 window_height : s32 = 1080;
@@ -241,24 +226,23 @@ Program_State :: enum {
     settings;
 }
 
-show_all_categories_on_graph := 1;
+show_categories_table: Table(int, bool);
 
 List_Info :: struct {
     scroll_delta: float;
     scroll_to_bottom: bool;
-    edit: int;
-    add: bool;
-    delete: int;
-    update: bool;
+    edit  :=  -1;
+    delete:= -1;
+    add   := false;
+    update:= false;
 } 
 
 rules_list : struct {
-    rules: [..]Rule;
+    rules         : [..]Rule;
     filtered_rules: [..]Rule;
-    using info: List_Info;
-    show_category_dropdown: bool;
-    category_filter: int;
-    name_sort: sort_direction;
+    using info    : List_Info;
+    category_filter:= -1;
+    name_sort:= sort_direction.ascending;
 };
 Rule :: struct {
     id: int;
@@ -267,8 +251,7 @@ Rule :: struct {
 }
 new_rule := Rule.{name="", category_id=0};
 
-categories_list : struct {
-    categories: [..]Category;
+categories_list : struct {    categories: [..]Category;
     scroll_delta_dashboard: float;
     using info: List_Info;
 }
@@ -279,17 +262,6 @@ Category :: struct {
 }
 new_category := Category.{name="", color="e3a019"};
 
-settings_transactions : struct {
-    // transactions: [..]Transaction;
-    subtotal: float64;
-    using info: List_Info;
-    remove_all: bool;
-}
-new_transaction := Transaction.{details="", note="", category_id=0, amount=0.0, date=""};
-
-transactions_raw: [..]Transaction;
-transactions_filtered: [..]Transaction;
-transactions: [..]Transaction;
 Transaction :: struct {
     id: int;
     date: string;
@@ -298,18 +270,36 @@ Transaction :: struct {
     note: string;
     category_id: int;
 }
+transactions_raw: [..]Transaction;
+settings_transactions : struct {
+    transactions         : [..]Transaction;
+    transactions_filtered: [..]Transaction;
+    subtotal             : float64;
+    remove_all           : bool;
+    using info           : List_Info;
+    
+    filter : struct {
+        transactions_search := "";
+        category_filter     := -1;
+        amount_sort         := sort_direction.none;
+        date_sort           := sort_direction.descending;  
+    };
+}
+new_transaction := Transaction.{details="", note="", category_id=0, amount=0.0, date=""};
 
 Transactions_List :: struct {
     transactions: [..]Transaction;
     type: graph_type;
     update: bool;
     scroll_delta: float;
-    chosen_period: int;
+    chosen_period: int = -1;
     subtotal: float64;
 }
 weekly_dashboard_transactions: Transactions_List;
 monthly_dashboard_transactions: Transactions_List;
 
+daily_spendings: Period_Spendings;
+monthly_spendings: Period_Spendings;
 Spending :: struct {
     category_id: int;
     total_spent: float64;
@@ -373,32 +363,25 @@ color_picker := Color_Picker.{
     hsv.value      = 0,
 };
 
-
 sort_direction :: enum int {
     ascending  :: 1;
     none       :: 0;
     descending :: -1;
 };
 
-transaction_filter : struct {
-    transactions_search: string  = "";
-    category_filter: int         = -1;
-    amount_sort: sort_direction = .none;
-    date_sort: sort_direction = .none;  
-};
+current_year: int;
 
 graph_type :: enum {
     weekly;
     monthly;
 }
 
-current_year: int;
-
 graph_details : struct {
-    year: int;
-    category_id: int;
-    active_transaction: int;
-    type: graph_type;
+    year               : int;
+    category_id        : int;
+    active_transaction : int;
+    type               := graph_type.weekly;
+    show_all_categories:= 1;
 };
 
 Message :: struct {

@@ -92,24 +92,24 @@ update_categories :: () {
 }
 
 update_settings_transactions :: ()  {
-    array_reset_keeping_memory(*transactions_filtered);
+    array_reset_keeping_memory(*settings_transactions.transactions_filtered);
     total: float64;
-    for tr: transactions {
+    for tr: settings_transactions.transactions {
         // -1: All categories 
-        if (transaction_filter.category_filter == -1 || tr.category_id == transaction_filter.category_filter) && 
-            contains_nocase(tr.details, transaction_filter.transactions_search) {
-                array_add(*transactions_filtered, tr);
+        if (settings_transactions.filter.category_filter == -1 || tr.category_id == settings_transactions.filter.category_filter) && 
+            contains_nocase(tr.details, settings_transactions.filter.transactions_search) {
+                array_add(*settings_transactions.transactions_filtered, tr);
                 total += tr.amount;
             }
     }
     
-    if transaction_filter.transactions_search != "" then settings_transactions.scroll_delta = 0;
+    if settings_transactions.filter.transactions_search != "" then settings_transactions.scroll_delta = 0;
     
-    if transaction_filter.amount_sort != .none {
-        quick_sort(transactions_filtered, tr => transaction_filter.amount_sort * tr.amount);
+    if settings_transactions.filter.amount_sort != .none {
+        quick_sort(settings_transactions.transactions_filtered, tr => settings_transactions.filter.amount_sort * tr.amount);
         settings_transactions.scroll_delta = 0;
-    } else if transaction_filter.date_sort != .none { 
-        quick_sort(transactions_filtered,  compare_tr_dates);
+    } else if settings_transactions.filter.date_sort != .none { 
+        quick_sort(settings_transactions.transactions_filtered,  compare_tr_dates);
         settings_transactions.scroll_delta = 0;
     }
     
@@ -122,10 +122,10 @@ update_settings_transactions :: ()  {
             if it >= b.count return 1;
             
             delta := cast(s64) a[it] - cast(s64) b[it];
-            if delta return xx transaction_filter.date_sort * delta;
+            if delta return xx settings_transactions.filter.date_sort * delta;
         }
     
-        if b.count > a.count return -1 * xx transaction_filter.date_sort;
+        if b.count > a.count return -1 * xx settings_transactions.filter.date_sort;
         return 0;
     }
 }
@@ -151,10 +151,10 @@ update_transactions_on_dashboard :: (transactions_list: *Transactions_List) {
             }
     }
             
-    for tr: transactions {
+    for tr: settings_transactions.transactions {
         if tr.amount <= 0 continue;
         show_on_graph, found := table_find(*show_categories_table, tr.category_id);
-        if !show_on_graph && show_all_categories_on_graph != 1 continue;
+        if !show_on_graph && graph_details.show_all_categories != 1 continue;
         if compare_strings(tr.date, end_date) > 0 || compare_strings(start_date, tr.date) > 0 then continue;
         if (graph_details.category_id == -1 || tr.category_id == graph_details.category_id) { 
             subtotal += tr.amount; 

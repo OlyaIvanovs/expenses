@@ -97,7 +97,7 @@ get_all_rules_from_db :: () -> bool {
 
 get_all_transactions_from_db :: () -> bool {
     query_str :: "SELECT * FROM Transactions;";
-    return get_transactions_from_db(to_c_string(query_str), *transactions);
+    return get_transactions_from_db(to_c_string(query_str), *settings_transactions.transactions);
 }
 
 get_filtered_transactions_from_db :: (category_id: int, year: int, days: int) -> bool {
