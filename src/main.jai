@@ -18,6 +18,7 @@ main :: () {
     if !ok return;
     categories_list.edit = -1;
     categories_list.delete = -1;
+    update_categories();
     
     for categories_list.categories table_set(*show_categories_table, it.id, false);
     

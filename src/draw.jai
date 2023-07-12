@@ -205,6 +205,12 @@ draw_settings :: (r: Rect) {
         update_filtered_rules();
         redraw_requested = true;
     }
+    
+    if categories_list.update {
+        categories_list.update = false;
+        update_categories();
+        redraw_requested = true;
+    }
 }
 
 draw_choose_graph :: (r: Rect) {
@@ -1411,6 +1417,7 @@ draw_edit_category_dialog :: (loc := #caller_location) {
             update_spendings_category(daily_spendings.spendings);
             update_spendings_category(monthly_spendings.spendings);
         }
+        categories_list.update = true;
         set_null_state();
     } else if no_chosen { 
         set_null_state();

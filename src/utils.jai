@@ -86,6 +86,11 @@ get_category_name :: (category_id: int) -> string{
     return "UNCATEGORISED";
 }
 
+update_categories :: () {
+    quick_sort(categories_list.categories, 
+                    (x, y) => compare_strings(to_lower_copy(x.name), to_lower_copy(y.name)));
+}
+
 update_settings_transactions :: ()  {
     array_reset_keeping_memory(*transactions_filtered);
     total: float64;

@@ -190,12 +190,11 @@
 + categories: do not save category without name
 + date validation bug
 
-- add settings_transactions struct
 - Dropdown: Up and down
-- Error/validate/confirm message
-- Dialog's inputs
-- Update style
 - remove category_id filter from graph_details. Remove graph_details (?)
-- decide on adding transaction: end or begin
+- add settings_transactions struct
+- Dialog's inputs
+- decide on adding transaction: end or begin/ remove to_bottom
+- Update style
 ? add edit category on dashboard page
 ? show date on week number hover 
