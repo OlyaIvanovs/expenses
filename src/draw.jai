@@ -95,11 +95,9 @@ draw_one_frame :: () {
 scrollbar_grab_point :float = 0;
 dropdown_scroll_delta :float = 0;
 chosen_line := 0;
-should_show_dropdown := false;
 before_category_choose := true; 
 
 set_null_state :: () {
-    should_show_dropdown = false;
     chosen_line = 0;
     
     settings_transactions.remove_all = false;
@@ -158,7 +156,7 @@ draw_dashboard :: (main_area: Rect) {
         redraw_requested = true;
     }
     
-     if monthly_dashboard_transactions.update {
+    if monthly_dashboard_transactions.update {
         update_transactions_on_dashboard(*monthly_dashboard_transactions);
         redraw_requested = true;
     }
@@ -215,14 +213,26 @@ draw_choose_graph :: (r: Rect) {
     option_icon_rect: Rect;
     r, rect := cut_top(r, LINE_HEIGHT);
     rect = shrink_x(rect, 15 * dpi_scale);
-    first_option, second_option := cut_top(rect, LINE_HEIGHT);
+    week_option, month_option := cut_top(rect, LINE_HEIGHT);
     option_id := get_ui_id_from_loc();
-    became_active := maybe_set_hot_or_active(option_id, first_option, .PRESSABLE);
-    if became_active then graph_details.type = .weekly;
-    became_active = maybe_set_hot_or_active(option_id, second_option, .PRESSABLE);
-    if became_active then graph_details.type = .monthly;
+    became_active := maybe_set_hot_or_active(option_id, week_option, .PRESSABLE);
+    if became_active && graph_details.type == .monthly {
+        graph_details.type = .weekly;
+        graph_details.active_transaction = -1;
+        weekly_dashboard_transactions.update = true; 
+        graph_details.category_id = -1;
+    }
     
-    option_icon_rect, first_option = cut_right(first_option, 20 * dpi_scale);
+    became_active = maybe_set_hot_or_active(option_id, month_option, .PRESSABLE);
+    if became_active && graph_details.type == .weekly {
+        graph_details.type = .monthly;
+        graph_details.active_transaction = -1;
+        monthly_dashboard_transactions.update = true; 
+        monthly_dashboard_transactions.chosen_period = -1; 
+        graph_details.category_id = -1;
+    }
+    
+    option_icon_rect, week_option = cut_right(week_option, 20 * dpi_scale);
     if graph_details.type == {
         case .weekly; 
             draw_icon(0xf192, option_icon_rect, Colors.UI_DEFAULT);
@@ -230,7 +240,7 @@ draw_choose_graph :: (r: Rect) {
             draw_icon(0xf111, option_icon_rect, Colors.UI_DEFAULT);
     }
     
-    option_icon_rect, second_option = cut_right(second_option, 20 * dpi_scale);
+    option_icon_rect, month_option = cut_right(month_option, 20 * dpi_scale);
     if graph_details.type == {
         case .monthly;
             draw_icon(0xf192, option_icon_rect, Colors.UI_DEFAULT);
@@ -238,8 +248,8 @@ draw_choose_graph :: (r: Rect) {
             draw_icon(0xf111, option_icon_rect, Colors.UI_DEFAULT);
     }
     
-    draw_text_in_rect(first_option, "Weekly expenses");
-    draw_text_in_rect(second_option, "Monthly expenses");
+    draw_text_in_rect(week_option, "Weekly expenses");
+    draw_text_in_rect(month_option, "Monthly expenses");
 }
  
 draw_dashboard_categories :: (r: Rect) {
@@ -376,7 +386,7 @@ draw_monthly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
                 
             if mouse_pointer_is_within(rect) {
                 draw_rect(month_name_rect, Colors.BACKGROUND_HIGH_TRANSPARENT);
-                draw_text_in_rect(month_desc_rect, get_month_name(i, to_calendar(current_time_consensus()).year-j, month_total));
+                draw_text_in_rect(month_desc_rect, get_month_name(i, to_calendar(current_time_consensus()).year-(2-j), month_total));
                 // draw_pie_chart(pie_chart_rect, month_spendings, month_total);
             }
             
@@ -460,11 +470,6 @@ draw_weekly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
     became_active := maybe_set_hot_or_active(year_dropdown_id, year_dropdown_w, .PRESSABLE, true);
     year_dropdown, icon_rect := cut_left(year_dropdown_w, 60 * dpi_scale); 
     draw_icon(0xf107, icon_rect);
-    if ui.active_input == year_dropdown_id {
-        should_show_dropdown = true;
-    } else {
-        should_show_dropdown = false;
-    }
     
     draw_text_in_rect(year_dropdown, tprint("%", graph_details.year));
     
@@ -566,7 +571,7 @@ draw_weekly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
     year_options := int.[2023, 2022, 2021];
     
     // Draw dropdown
-    if should_show_dropdown {
+    if ui.active_input == year_dropdown_id {
         wrapper := year_dropdown_w;
         wrapper.h = min(year_options.count-1, 5) * LINE_HEIGHT;
         wrapper.y = year_dropdown.y - wrapper.h;
@@ -664,7 +669,7 @@ draw_dashboard_transactions :: (r: Rect, transactions_list: *Transactions_List) 
         
     wrapper : = r;
     line_num := transactions_list.transactions.count;
-    if graph_details.active_transaction != 0 then line_num += 2;  
+    if graph_details.active_transaction != 0 then line_num += 3;  
     content_height := line_num * LINE_HEIGHT;
     wrapper = adjust_height(wrapper);
     if wrapper.h > content_height {
@@ -681,18 +686,27 @@ draw_dashboard_transactions :: (r: Rect, transactions_list: *Transactions_List) 
         wrapper, content_height, scrollbar_id, ui_id, transactions_list.scroll_delta, to);
     transactions_rect.y += transactions_list.scroll_delta;
     
-    rect, date_rect, note_rect, amount_rect, color_rect : Rect;
+    rect, date_rect, note_rect, amount_rect, color_rect, category_rect: Rect;
+    tr_category_id: Ui_Id;
     for tr, tr_index: transactions_list.transactions {
         if tr.id == graph_details.active_transaction {
-            rect, transactions_rect = cut_top(transactions_rect, 3 * LINE_HEIGHT);
+            rect, transactions_rect = cut_top(transactions_rect, 4 * LINE_HEIGHT);
             rect, date_rect = cut_top(rect, LINE_HEIGHT); 
             date_rect, note_rect = cut_top(date_rect, LINE_HEIGHT); 
+            category_rect, note_rect = cut_top(note_rect, LINE_HEIGHT); 
             // Date
             draw_text_in_rect(date_rect, tr.date, Colors.UI_DIM);
             // Note
             note := tr.note;
             if note == "" note = "No note for the transaction";
             draw_text_in_rect(note_rect, note, Colors.UI_DIM);
+            // Category
+            tr_category_id = get_ui_id_from_loc();
+            became_active := maybe_set_hot_or_active(tr_category_id, category_rect, .PRESSABLE, true);
+            if is_hovering_over(tr_category_id) || ui.active_input == tr_category_id { 
+                draw_rect(category_rect, Colors.SEARCH_RESULT_INACTIVE); 
+            }
+            if ui.active_input != tr_category_id then draw_text_in_rect(category_rect, get_category_name(tr.category_id));
             draw_line_separator(note_rect);
         } else {
             rect, transactions_rect = cut_top(transactions_rect, LINE_HEIGHT);
@@ -725,6 +739,25 @@ draw_dashboard_transactions :: (r: Rect, transactions_list: *Transactions_List) 
         if !ok then color = Colors.RED;
         draw_rect(color_rect, color);
         draw_text_in_rect(rect, tr.details, text_color);
+    }
+    
+    // Draw dropdown
+    if ui.active_input == tr_category_id {
+        for *tr: settings_transactions.transactions {
+            if tr.id == graph_details.active_transaction {
+                c := draw_categories_dropdown(category_rect, tr.category_id);
+                if c != tr.category_id {
+                    tr.category_id = c;
+                    graph_details.category_id = tr.category_id;
+                    ok := add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
+                    if !ok then return; 
+                    weekly_dashboard_transactions.update = true;
+                    monthly_dashboard_transactions.update = true;
+                    monthly_spendings = update_spendings_data(monthly_spendings, .monthly);
+                }
+                break;
+            }
+        }
     }
 
 }
@@ -897,13 +930,7 @@ draw_rules :: (r: Rect) {
     became_active := maybe_set_hot_or_active(category_filter_id, category_filter, .PRESSABLE, true);
     category_filter, icon_rect = cut_left(category_filter, 85 * dpi_scale); 
     draw_icon(0xf107, icon_rect, Colors.BACKGROUND_BRIGHT);
-    if ui.active_input == category_filter_id {
-        // Draw dropdown
-        should_show_dropdown = true;
-    } else {
-        should_show_dropdown = false;
-    }
-    
+
     if rules_list.category_filter > -1 {
         draw_text_in_rect(category_filter, get_category_name(rules_list.category_filter), Colors.BACKGROUND_BRIGHT);
     } else {
@@ -994,7 +1021,7 @@ draw_rules :: (r: Rect) {
     if became_active then rules_list.add = true;
     draw_button(add_rule_button, "Add a new rule");
     
-    if should_show_dropdown {
+    if ui.active_input == category_filter_id {
         rules_list.category_filter = draw_categories_dropdown_with_all(category_filter, rules_list.category_filter);
     }
     
@@ -1137,12 +1164,8 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     }
 
     if ui.active_input == tr_category_id {
-        // Draw dropdown
-        should_show_dropdown = true;
         before_category_choose = false;
-    } else {
-        should_show_dropdown = false;
-        
+    } else {        
         // Predict transaction's category
         if before_category_choose && settings_transactions.add  {
             if new_transaction.details != "" {
@@ -1177,7 +1200,7 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);    
     
     // Draw dropdown
-    if should_show_dropdown {
+    if ui.active_input == tr_category_id {
         new_transaction.category_id = draw_categories_dropdown(category_area, new_transaction.category_id);
     }
     
@@ -1501,11 +1524,8 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
     }
         
     if ui.active_input == ui_category_id {
-        // Draw dropdown
-        should_show_dropdown = true;
         before_category_choose = false;
     } else {
-        should_show_dropdown = false;
         draw_text_in_rect(category_area, get_category_name(new_rule.category_id));
     }
     
@@ -1596,7 +1616,7 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
     }
  
     // Draw dropdown
-    if should_show_dropdown {
+    if ui.active_input == ui_category_id {
         new_rule.category_id = draw_categories_dropdown(category_area, new_rule.category_id);
     }
 }
@@ -1780,12 +1800,6 @@ draw_settings_transactions :: (r: Rect) {
     became_active = maybe_set_hot_or_active(category_filter_id, category_filter, .PRESSABLE, true);
     category_filter, icon_rect = cut_left(category_filter, 85 * dpi_scale); 
     draw_icon(0xf107, icon_rect, Colors.BACKGROUND_BRIGHT);
-    if ui.active_input == category_filter_id {
-        // Draw dropdown
-        should_show_dropdown = true;
-    } else {
-        should_show_dropdown = false;
-    }
     
     if settings_transactions.filter.category_filter > -1 {
         draw_text_in_rect(category_filter, get_category_name(settings_transactions.filter.category_filter), Colors.BACKGROUND_BRIGHT);
@@ -1835,7 +1849,7 @@ draw_settings_transactions :: (r: Rect) {
         draw_text_in_rect(rect, settings_transactions.filter.transactions_search, Colors.UI_DIM);
     }
 
-    if should_show_dropdown {
+    if ui.active_input == category_filter_id {
         settings_transactions.filter.category_filter = 
             draw_categories_dropdown_with_all(category_filter, settings_transactions.filter.category_filter);
     }

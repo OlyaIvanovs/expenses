@@ -137,7 +137,8 @@ update_transactions_on_dashboard :: (transactions_list: *Transactions_List) {
     if transactions_list.type == {
         case .weekly;
             start_date = tprint("%/01/01", graph_details.year); 
-            end_date = tprint("%/01/01", graph_details.year+1); 
+            year := graph_details.year+1;
+            end_date = tprint("%/01/01", year); 
         case .monthly;
             if transactions_list.chosen_period != -1 {
                 year := cast(int) transactions_list.chosen_period / 12 + current_year - 2;
@@ -147,14 +148,14 @@ update_transactions_on_dashboard :: (transactions_list: *Transactions_List) {
                 end_date = tprint("%/%/01", year, formatInt(month+1, minimum_digits=2)); 
             } else {
                 start_date = tprint("%/01/01", current_year-2); 
-                end_date = tprint("%/01/01", current_year); 
+                end_date = tprint("%/01/01", current_year + 1); 
             }
     }
-            
+        
     for tr: settings_transactions.transactions {
         if tr.amount <= 0 continue;
         show_on_graph, found := table_find(*show_categories_table, tr.category_id);
-        if !show_on_graph && graph_details.show_all_categories != 1 continue;
+        if !show_on_graph && graph_details.show_all_categories != 1 then continue;
         if compare_strings(tr.date, end_date) > 0 || compare_strings(start_date, tr.date) > 0 then continue;
         if (graph_details.category_id == -1 || tr.category_id == graph_details.category_id) { 
             subtotal += tr.amount; 

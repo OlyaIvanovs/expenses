@@ -187,6 +187,7 @@
 
 # 14/07/2023
 + Dropdown: Up and down
++ add edit category on dashboard page
 
 + Domino's & Pierrs
 + edit rule doesn't work
@@ -197,9 +198,8 @@
 + date validation bug
 + add settings_transactions struct
 
-
-- Dialog's inputs
+- bug: dashboard dropdown crop by wrapper height
+- style: Dialog's inputs
 - decide on adding transaction: end or begin/ remove to_bottom
 - Update style
-? add edit category on dashboard page
 ? show date on week number hover 

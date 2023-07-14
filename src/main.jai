@@ -20,7 +20,8 @@ main :: () {
     
     for categories_list.categories table_set(*show_categories_table, it.id, false);
     
-    graph_details.year = to_calendar(current_time_consensus()).year;
+    current_year = to_calendar(current_time_consensus()).year;
+    graph_details.year = current_year;
     
     daily_spendings, ok = get_daily_spendings(0);
     if !ok return;
@@ -64,7 +65,6 @@ main :: () {
         arrow_up_pressed = false;
         key_pressed = false;
         
-        current_year = to_calendar(current_time_consensus()).year;
         frame_time = cast(Time) get_time();
         Input.update_window_events();
 
@@ -238,11 +238,11 @@ List_Info :: struct {
 } 
 
 rules_list : struct {
-    rules         : [..]Rule;
-    filtered_rules: [..]Rule;
-    using info    : List_Info;
+    rules          : [..]Rule;
+    filtered_rules : [..]Rule;
+    using info     : List_Info;
     category_filter:= -1;
-    name_sort:= sort_direction.ascending;
+    name_sort      := sort_direction.ascending;
 };
 Rule :: struct {
     id: int;
@@ -380,7 +380,7 @@ graph_type :: enum {
 
 graph_details : struct {
     year               : int;
-    category_id        : int;
+    category_id        := -1;
     active_transaction : int;
     type               := graph_type.weekly;
     show_all_categories:= 1;
