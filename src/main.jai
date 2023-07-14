@@ -60,6 +60,8 @@ main :: () {
         if !redraw_requested platform_wait_message();
         redraw_requested = false;
         enter_pressed = false;
+        arrow_down_pressed = false;
+        arrow_up_pressed = false;
         key_pressed = false;
         
         current_year = to_calendar(current_time_consensus()).year;
@@ -88,15 +90,13 @@ main :: () {
 
                 case .KEYBOARD;
                     key_pressed = true;
-                    
                     if event.key_pressed == 0 continue;
-
-                    if event.key_code == .ESCAPE {
-                        set_null_state();
-                    }
                     
-                    if event.key_code == .ENTER {
-                        enter_pressed = true;
+                    if event.key_code == {
+                        case .ESCAPE; set_null_state();
+                        case .ENTER; enter_pressed = true;
+                        case .ARROW_UP; arrow_up_pressed = true;
+                        case .ARROW_DOWN; arrow_down_pressed = true;                        
                     }
 
                     // TMP
@@ -320,6 +320,8 @@ MAX_BUTTON_SIZE ::  #run 250 * dpi_scale;
 LINE_HEIGHT :: #run 36 * dpi_scale;
 
 enter_pressed := false;
+arrow_up_pressed := false;
+arrow_down_pressed := false;
 key_pressed := false;
 
 frame_time: Time;

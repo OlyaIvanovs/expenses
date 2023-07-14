@@ -18,13 +18,15 @@ Colors :: struct {
     CYAN                    :: Color.{ r = 0, g =1, b = 1};
     BLACK                   :: Color.{ r = 0, g =0, b = 0};
 
-    BACKGROUND              :: Color.{ r = 0.0, g = 0.25, b = 0.32 }; 
-    BACKGROUND_TRANSPARENT  :: Color.{ r = 0.086, g = 0.133, b = 0.165, a = 0.8 };
-    BACKGROUND_HIGH_TRANSPARENT  :: Color.{ r = 0.086, g = 0.133, b = 0.165, a = 0.15 };
-    BACKGROUND_DARK         :: Color.{ r = 0.0, g = 0.13, b = 0.16 };
-    BACKGROUND_HIGHLIGHT    :: Color.{ r = 0.0, g = 0.38, b = 0.48 };
-    BACKGROUND_LIGHT        :: Color.{ r = 0.0, g = 0.19, b = 0.24 };
-    BACKGROUND_BRIGHT       :: Color.{ r = 0.0, g = 0.31, b = 0.4 };
+    BACKGROUND                      :: Color.{ r = 0.0, g = 0.25, b = 0.32 }; 
+    BACKGROUND_TRANSPARENT          :: Color.{ r = 0.086, g = 0.133, b = 0.165, a = 0.8 };
+    BACKGROUND_HIGH_TRANSPARENT     :: Color.{ r = 0.086, g = 0.133, b = 0.165, a = 0.15 };
+    BACKGROUND_DARK                 :: Color.{ r = 0.0, g = 0.13, b = 0.16 };
+    BACKGROUND_HIGHLIGHT            :: Color.{ r = 0.0, g = 0.38, b = 0.48 };
+    BACKGROUND_LIGHT                :: Color.{ r = 0.0, g = 0.19, b = 0.24 };
+    BACKGROUND_LIGHT_TRANSPARENT    :: Color.{ r = 0.0, g = 0.19, b = 0.24, a = 0.65};
+    BACKGROUND_BRIGHT               :: Color.{ r = 0.0, g = 0.31, b = 0.4 };
+    
     SELECTION_ACTIVE        :: Color.{ r = 0.11, g = 0.267, b = 0.29 };
     SELECTION_INACTIVE      :: Color.{ r = 0.11, g = 0.267, b = 0.29, a = 0.5 };
     SELECTION_HIGHLIGHT     :: Color.{ r = 0.8, g = 0.6, b = 0.8, a = 0.2 };

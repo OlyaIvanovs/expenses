@@ -11,12 +11,7 @@ draw_one_frame :: () {
     main_area = shrink_x(main_area, 0.02 * window_width);
     pad, main_area = cut_bottom(main_area, 0.03 * window_height);
     draw_rect(tabs_rect, Colors.BACKGROUND_DARK);
-    
-    
-    if enter_pressed {
-        ui.last_active_input =  ui.active_input;
-        ui.active_input = .none;
-    }
+
     
     if program_state == {
         case .dashboard;        draw_dashboard(main_area);
@@ -79,6 +74,11 @@ draw_one_frame :: () {
             draw_message_popup();
         }
     }
+    
+     if enter_pressed {
+        ui.last_active_input =  ui.active_input;
+        ui.active_input = .none;
+    }
 
     // Reset UI state after drawing
     if !mouse.left.is_down || mouse.left.just_released {
@@ -94,11 +94,13 @@ draw_one_frame :: () {
 
 scrollbar_grab_point :float = 0;
 dropdown_scroll_delta :float = 0;
+chosen_line := 0;
 should_show_dropdown := false;
 before_category_choose := true; 
 
 set_null_state :: () {
     should_show_dropdown = false;
+    chosen_line = 0;
     
     settings_transactions.remove_all = false;
     settings_transactions.edit = -1;
@@ -776,7 +778,7 @@ draw_scrollbar :: (wrapper: Rect, content_height: float, ui_id: Ui_Id, parent_ui
     // Maybe mouse wheel    
     } else if is_hovering_over_child(parent_ui_id) && mouse_pointer_is_within(wrapper) { 
         to_bottom = false;
-        scroll_delta -= mouse.scroll_y_delta;
+        scroll_delta -= mouse.scroll_y_delta; 
     }
     
     return cast(float) clamp(scroll_delta, 0, xx (content_height - wrapper.h)), to_bottom;
@@ -993,7 +995,7 @@ draw_rules :: (r: Rect) {
     draw_button(add_rule_button, "Add a new rule");
     
     if should_show_dropdown {
-        rules_list.category_filter = draw_categories_dropdown(category_filter, rules_list.category_filter);
+        rules_list.category_filter = draw_categories_dropdown_with_all(category_filter, rules_list.category_filter);
     }
     
 }
@@ -1176,63 +1178,7 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     
     // Draw dropdown
     if should_show_dropdown {
-        wrapper := category_area;
-        wrapper.h = min(categories_list.categories.count, 5) * LINE_HEIGHT;;
-        wrapper.y = category_area.y + category_area.h - wrapper.h;
-        draw_rect(wrapper, Colors.SEARCH_RESULT_INACTIVE);  
-        
-        ui_id := get_ui_id_from_loc();
-        maybe_set_hot_or_active(ui_id, wrapper, .NORMAL, false);
-            
-        content_height := categories_list.categories.count * LINE_HEIGHT;
-        dropdown_rect := wrapper;
-        if content_height <= wrapper.h  { // no scroll
-            wrapper.y += wrapper.h - content_height;
-            wrapper.h = content_height;
-            dropdown_rect = wrapper;
-        } else { // place for scroll
-            dropdown_rect = cut_left(wrapper, wrapper.w - 10 * dpi_scale);
-        }
-        
-        push_scissor(wrapper);
-        defer pop_scissor();
-        
-        scrollbar_id := get_ui_id_from_loc(parent_id = ui_id);
-        to: bool;
-        dropdown_scroll_delta, to = draw_scrollbar(
-            wrapper, content_height, scrollbar_id, ui_id, dropdown_scroll_delta);
-        dropdown_rect.y += dropdown_scroll_delta; 
-
-        // Chosen category should go first                           
-        rect : Rect;        
-        rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
-        first_category_id := get_ui_id_from_loc_with_index(ui_id, categories_list.categories.count);
-        maybe_set_hot_or_active(first_category_id, rect, .PRESSABLE); 
-        if is_hovering_over(first_category_id) {
-            draw_rect(rect, Colors.BACKGROUND_LIGHT);
-        }       
-        draw_text_in_rect(rect, get_category_name(new_transaction.category_id));
-        
-        // Other categories go next 
-        for *category, cat_index: categories_list.categories {
-            if category.id == new_transaction.category_id then continue;
-            rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
-            category_line_id := get_ui_id_from_loc_with_index(ui_id, cat_index);
-            
-            became_active := maybe_set_hot_or_active(category_line_id, rect, .NORMAL);             
-            
-            if is_hovering_over(category_line_id) && mouse_pointer_is_within(wrapper) {
-                draw_rect(rect, Colors.BACKGROUND_LIGHT);
-                set_pointer_image(.PRESSABLE);
-            }
-            
-            if became_active && mouse_pointer_is_within(wrapper) { 
-                new_transaction.category_id = category.id;
-                dropdown_scroll_delta = 0;
-            }
-            
-           draw_text_in_rect(rect, category.name);
-        }
+        new_transaction.category_id = draw_categories_dropdown(category_area, new_transaction.category_id);
     }
     
     if yes_chosen {   
@@ -1651,60 +1597,7 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
  
     // Draw dropdown
     if should_show_dropdown {
-        wrapper := category_area; wrapper.h = min(categories_list.categories.count, 5) * LINE_HEIGHT;
-        wrapper.y = category_area.y + category_area.h - wrapper.h;
-        
-        dropdown_id := get_ui_id_from_loc();
-        maybe_set_hot_or_active(dropdown_id, wrapper, .NORMAL, false);
-    
-        draw_rect(wrapper, Colors.SEARCH_RESULT_INACTIVE);  
-        
-        content_height := categories_list.categories.count * LINE_HEIGHT;
-        if wrapper.h > content_height {
-            wrapper.y += wrapper.h - content_height;
-            wrapper.h = content_height;
-        }
-        
-        dropdown_rect := cut_left(wrapper, wrapper.w - 10*dpi_scale);
-        
-        push_scissor(wrapper);
-        defer pop_scissor();
-        
-        scrollbar_id := get_ui_id_from_loc(parent_id = dropdown_id);
-        to: bool;
-        dropdown_scroll_delta, to = draw_scrollbar(wrapper, content_height, scrollbar_id, dropdown_id, dropdown_scroll_delta);
-        dropdown_rect.y += dropdown_scroll_delta;
-                           
-        // Chosen category should go first                           
-        rect : Rect;        
-        rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
-        first_category_id := get_ui_id_from_loc_with_index(dropdown_id, categories_list.categories.count);
-        maybe_set_hot_or_active(first_category_id, rect, .PRESSABLE); 
-        if is_hovering_over(first_category_id) {
-            draw_rect(rect, Colors.BACKGROUND_LIGHT);
-        }
-        draw_text_in_rect(rect,  get_category_name(new_rule.category_id));                   
-                
-        // Other categories go next 
-        for *category, cat_index: categories_list.categories {
-            if category.id == new_rule.category_id  continue;
-            rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
-            category_line_id := get_ui_id_from_loc_with_index(dropdown_id, cat_index);
-            
-            became_active := maybe_set_hot_or_active(category_line_id, rect, .NORMAL);
-                        
-            if is_hovering_over(category_line_id) && mouse_pointer_is_within(wrapper) {
-                draw_rect(rect, Colors.BACKGROUND_LIGHT);
-                set_pointer_image(.PRESSABLE);
-            }
-               
-            if became_active && mouse_pointer_is_within(wrapper) {  
-                new_rule.category_id = category.id;
-                dropdown_scroll_delta = 0;
-            }
-            
-            draw_text_in_rect(rect, category.name);
-        }
+        new_rule.category_id = draw_categories_dropdown(category_area, new_rule.category_id);
     }
 }
 
@@ -1941,15 +1834,19 @@ draw_settings_transactions :: (r: Rect) {
         draw_line_separator(rect);
         draw_text_in_rect(rect, settings_transactions.filter.transactions_search, Colors.UI_DIM);
     }
-    
-    // Draw dropdown
+
     if should_show_dropdown {
         settings_transactions.filter.category_filter = 
-            draw_categories_dropdown(category_filter, settings_transactions.filter.category_filter);
+            draw_categories_dropdown_with_all(category_filter, settings_transactions.filter.category_filter);
     }
 }
 
-draw_categories_dropdown :: (r: Rect, category_filter: int) -> int{
+
+draw_categories_dropdown_with_all :: (r: Rect, category_filter: int) -> int{
+    if arrow_up_pressed then chosen_line -= 1;
+    if arrow_down_pressed then chosen_line += 1;
+    chosen_line = clamp(chosen_line, 0, categories_list.categories.count - 1);
+        
     wrapper := r;
     wrapper.h = min(categories_list.categories.count, 5) * LINE_HEIGHT;
     wrapper.y = r.y - wrapper.h;
@@ -1958,7 +1855,7 @@ draw_categories_dropdown :: (r: Rect, category_filter: int) -> int{
     draw_rect(wrapper, Colors.SEARCH_RESULT_INACTIVE); 
     
     ui_id := get_ui_id_from_loc();
-    maybe_set_hot_or_active(ui_id, wrapper, .NORMAL, false);
+    maybe_set_hot_or_active(ui_id, wrapper, .NORMAL, true);
 
     content_height := categories_list.categories.count * LINE_HEIGHT;
     dropdown_rect := wrapper;
@@ -1979,17 +1876,26 @@ draw_categories_dropdown :: (r: Rect, category_filter: int) -> int{
         wrapper, content_height, scrollbar_id, ui_id, dropdown_scroll_delta);
     dropdown_rect.y += dropdown_scroll_delta;
     
-    draw_line :: (rect: Rect, category: *Category, ui_id: Ui_Id, wrapper: Rect, category_filter: int) -> int {
-        became_active := maybe_set_hot_or_active(ui_id, rect, .NORMAL);   
+    d :=  (LINE_HEIGHT * (chosen_line + 1)) - wrapper.h - (dropdown_rect.y - wrapper.y);
+    if dropdown_rect.y + d >= wrapper.y {
+        dropdown_scroll_delta += d;
+        dropdown_rect.y += d;
+    }
+    
+    draw_line :: (rect: Rect, category: *Category, ui_id: Ui_Id, wrapper: Rect, category_filter: int, chosen: bool) -> int {
+        became_active := maybe_set_hot_or_active(ui_id, rect, .NORMAL, true);   
         
         if is_hovering_over(ui_id) && mouse_pointer_is_within(wrapper) {
-            draw_rect(rect, Colors.BACKGROUND_LIGHT);
+            draw_rect(rect, Colors.BACKGROUND_LIGHT_TRANSPARENT);
             set_pointer_image(.PRESSABLE);
         }
+        
+        if chosen then draw_rect(rect, Colors.BACKGROUND_BRIGHT);
                
-        if became_active && mouse_pointer_is_within(wrapper) {  
+        if (became_active && mouse_pointer_is_within(wrapper)) || (chosen && enter_pressed) {  
             category_filter = category.id;
             dropdown_scroll_delta = 0;
+            chosen_line = 0;
             settings_transactions.update = true;
             rules_list.update = true;
         }
@@ -2003,16 +1909,103 @@ draw_categories_dropdown :: (r: Rect, category_filter: int) -> int{
         category_line_id := get_ui_id_from_loc_with_index(ui_id, categories_list.categories.count);
         rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
         category := Category.{name="All categories", id=-1};
-        category_filter = draw_line(rect, *category, category_line_id, wrapper, category_filter);
-    }                    
+        category_filter = draw_line(rect, *category, category_line_id, wrapper, category_filter, chosen_line == 0);
+    }       
+    skip: bool;             
     for *category, cat_index: categories_list.categories {
-        if category.id == category_filter continue;
+        chosen_index := cat_index;
+        if category.id == category_filter then {skip = true; continue;}
+        if category_filter != -1 && !skip then chosen_index += 1;
+        
         rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
         category_line_id := get_ui_id_from_loc_with_index(ui_id, cat_index);
-        category_filter = draw_line(rect, category, category_line_id, wrapper, category_filter);
+        category_filter = draw_line(rect, category, category_line_id, wrapper, category_filter, chosen_line == chosen_index);
+    }
+        
+    return category_filter;
+}
+
+draw_categories_dropdown :: (r: Rect, category_id: int) -> int {
+    if arrow_up_pressed then chosen_line -= 1;
+    if arrow_down_pressed then chosen_line += 1;
+    chosen_line = clamp(chosen_line, 0, categories_list.categories.count-1);
+    
+    wrapper := r; 
+    wrapper.h = min(categories_list.categories.count, 5) * LINE_HEIGHT;
+    wrapper.y = r.y + r.h - wrapper.h;
+    
+    dropdown_id := get_ui_id_from_loc();
+    maybe_set_hot_or_active(dropdown_id, wrapper, .NORMAL, true);
+
+    draw_rect(wrapper, Colors.SEARCH_RESULT_INACTIVE);  
+    
+    content_height := categories_list.categories.count * LINE_HEIGHT;
+    if wrapper.h > content_height {
+        wrapper.y += wrapper.h - content_height;
+        wrapper.h = content_height;
     }
     
-    return category_filter;
+    dropdown_rect := cut_left(wrapper, wrapper.w - 10*dpi_scale);
+    
+    push_scissor(wrapper);
+    defer pop_scissor();
+    
+    scrollbar_id := get_ui_id_from_loc(parent_id = dropdown_id);
+    to: bool;
+    dropdown_scroll_delta, to = draw_scrollbar(wrapper, content_height, scrollbar_id, dropdown_id, dropdown_scroll_delta);
+    dropdown_rect.y += dropdown_scroll_delta;
+    
+    d :=  (LINE_HEIGHT * (chosen_line + 1)) - wrapper.h - (dropdown_rect.y - wrapper.y);
+    if dropdown_rect.y + d >= wrapper.y {
+        dropdown_scroll_delta += d;
+        dropdown_rect.y += d;
+    }
+                       
+    // Chosen category should go first                           
+    rect : Rect;        
+    rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
+    first_category_id := get_ui_id_from_loc_with_index(dropdown_id, categories_list.categories.count);
+    maybe_set_hot_or_active(first_category_id, rect, .PRESSABLE); 
+    if chosen_line == 0 { 
+        draw_rect(rect, Colors.BACKGROUND_BRIGHT);
+    }
+    if is_hovering_over(first_category_id) {
+        draw_rect(rect, Colors.BACKGROUND_LIGHT_TRANSPARENT);
+    }
+    draw_text_in_rect(rect,  get_category_name(category_id));                   
+            
+    // Other categories go next 
+    after_chosen_category: bool;
+    for *category, cat_index: categories_list.categories {
+        chosen_index := cat_index;
+        if !after_chosen_category then chosen_index += 1;
+        if category.id == category_id {
+            after_chosen_category = true;
+            continue;
+        };
+        rect, dropdown_rect = cut_top(dropdown_rect, LINE_HEIGHT);
+        category_line_id := get_ui_id_from_loc_with_index(dropdown_id, cat_index);
+        
+        became_active := maybe_set_hot_or_active(category_line_id, rect, .NORMAL);
+        
+        if chosen_line == chosen_index { 
+            draw_rect(rect, Colors.BACKGROUND_BRIGHT);
+        }
+        if is_hovering_over(category_line_id) && mouse_pointer_is_within(wrapper) {
+            draw_rect(rect, Colors.BACKGROUND_LIGHT_TRANSPARENT);
+            set_pointer_image(.PRESSABLE);
+        }
+           
+        if (became_active && mouse_pointer_is_within(wrapper)) || (chosen_line == chosen_index && enter_pressed)  {  
+            category_id = category.id;
+            dropdown_scroll_delta = 0;
+            chosen_line = 0;
+        }
+        
+        draw_text_in_rect(rect, category.name);
+    }
+    
+    return category_id;
 }
 
 draw_text_input :: (using text_input: *Text_Input, r: Rect, ui_id: Ui_Id, color: Color = Colors.UI_DEFAULT) {

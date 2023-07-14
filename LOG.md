@@ -185,6 +185,9 @@
 # 12/07/2023
 + settings_transactions struct
 
+# 14/07/2023
++ Dropdown: Up and down
+
 + Domino's & Pierrs
 + edit rule doesn't work
 + rules: sort by name
@@ -194,7 +197,7 @@
 + date validation bug
 + add settings_transactions struct
 
-- Dropdown: Up and down
+
 - Dialog's inputs
 - decide on adding transaction: end or begin/ remove to_bottom
 - Update style
