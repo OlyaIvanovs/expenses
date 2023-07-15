@@ -189,6 +189,10 @@
 + Dropdown: Up and down
 + add edit category on dashboard page
 
+# 15/07/2023
++ dropdown bug
++ style
+
 + Domino's & Pierrs
 + edit rule doesn't work
 + rules: sort by name
@@ -197,9 +201,10 @@
 + categories: do not save category without name
 + date validation bug
 + add settings_transactions struct
++ bug: dashboard dropdown crop by wrapper height
 
-- bug: dashboard dropdown crop by wrapper height
 - style: Dialog's inputs
 - decide on adding transaction: end or begin/ remove to_bottom
 - Update style
+- pie chart
 ? show date on week number hover 

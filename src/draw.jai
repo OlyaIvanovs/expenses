@@ -383,6 +383,11 @@ draw_monthly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
 
             rect.h = xx (rect.h * (month_total / max_spending)); // MAX SPENDING
             if rect.h == 0 rect.h = 2 * dpi_scale;
+            
+            if month_total == 0 {
+                draw_rect(rect, Colors.BACKGROUND_LIGHT);
+                continue;
+            }
                 
             if mouse_pointer_is_within(rect) {
                 draw_rect(month_name_rect, Colors.BACKGROUND_HIGH_TRANSPARENT);
@@ -390,19 +395,16 @@ draw_monthly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
                 // draw_pie_chart(pie_chart_rect, month_spendings, month_total);
             }
             
-            if month_total == 0 {
-                draw_rect(rect, Colors.BACKGROUND_LIGHT);
-                continue;
-            }
-            
             // draw categories
             y: float32;
+            sub_total: float64;
             for spending, k: month_spendings {
                 show_on_graph, found := table_find(*show_categories_table, spending.category_id);
                 if !show_on_graph { // check if show all categories
                     show_on_graph, found = table_find(*show_categories_table, -1);
                     if !show_on_graph continue;
                 }
+                sub_total += spending.total_spent;
                 r := rect;
                 r.h = xx (rect.h * (spending.total_spent / month_total));
                 r.y += y;
@@ -430,18 +432,10 @@ draw_monthly_graph_area :: (r: Rect, pie_chart_rect: Rect) {
                     draw_bar_info =  true;
                 }
             }
+            
+            rect.h = 2 * dpi_scale;
+            if sub_total == 0 then draw_rect(rect, Colors.BACKGROUND_LIGHT);
         }
-        
-        // if mouse_pointer_is_within(month_name_rect) && mouse.left.is_down {
-        //     array_reset_keeping_memory(*dashboard_transactions);
-        //     get_filtered_transactions_from_db(-1, to_calendar(current_time_consensus()).year-graph_details.year, i*7);
-        //     if show_all_categories_on_graph != 1 {
-        //         for tr, i: dashboard_transactions {
-        //             show_on_graph, found := table_find(*show_categories_table, tr.category_id);
-        //             if !show_on_graph then remove tr;
-        //         }
-        //     }
-        // }
     }
     
     if draw_bar_info {
@@ -679,7 +673,6 @@ draw_dashboard_transactions :: (r: Rect, transactions_list: *Transactions_List) 
     
     transactions_rect := shrink_x(wrapper, 0.015 * wrapper.w);
     push_scissor(wrapper);
-    defer pop_scissor();
     scrollbar_id := get_ui_id_from_loc(parent_id = ui_id);
     to: bool;
     transactions_list.scroll_delta, to = draw_scrollbar(
@@ -740,6 +733,7 @@ draw_dashboard_transactions :: (r: Rect, transactions_list: *Transactions_List) 
         draw_rect(color_rect, color);
         draw_text_in_rect(rect, tr.details, text_color);
     }
+    pop_scissor();
     
     // Draw dropdown
     if ui.active_input == tr_category_id {
@@ -1255,14 +1249,15 @@ draw_edit_category_dialog :: (loc := #caller_location) {
     // Categorie's name
     ui_id := get_ui_id_from_loc();
     became_active := maybe_set_hot_or_active(ui_id, name_area, .PRESSABLE, true);
-    if is_hovering_over(ui_id) || ui.active_input == ui_id then draw_rect(name_area, Colors.SEARCH_RESULT_INACTIVE );
+    color := Colors.BACKGROUND;
+    if is_hovering_over(ui_id) then color = Colors.SEARCH_RESULT_INACTIVE;
+    draw_rect(name_area, color);
     if ui.active_input == ui_id {
         if became_active {
             array_resize(*text_input.text, new_category.name.count);
             memcpy(text_input.text.data, new_category.name.data, new_category.name.count);
         }
-        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
-        input_rect := cut_top(name_area, input_height);
+        input_rect := name_area;
         draw_text_input(*text_input, input_rect, ui_id);
         new_category.name = copy_string(cast(string) text_input.text);
     } else {
@@ -1570,22 +1565,7 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
             if contains_nocase(tr.details, new_rule.name) { 
                 tr.category_id = new_rule.category_id; 
                 add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
-                continue;
             }
-            
-            if rules_list.edit <= -1 continue; 
-            if tr.category_id != edit_rule_category_id continue;
-
-            for r: rules_list.rules {
-                if r.id == rules_list.edit continue;  
-                if contains_nocase(tr.details, r.name) {
-                     tr.category_id = r.category_id;
-                     add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
-                     continue tr;
-                }
-            }
-            tr.category_id = 0; // no match, set category to "UNCATEGORISED" 
-            add_transaction_to_db(tr.id, tr.date, tr.amount, tr.details, tr.note, tr.category_id);
         }
         
         text_input.text.count = 0;
@@ -2039,8 +2019,8 @@ draw_text_input :: (using text_input: *Text_Input, r: Rect, ui_id: Ui_Id, color:
     // 2. If outside the boundaries, calculate new target for the cursor so that it reaches the closest allowed position
     // 3. Only when the calculated target doesn't match the current target do we start a new animation
 
-    cursor_x    := Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos));
-    text_length := Simp.prepare_text(font_ui, to_string(text));
+    cursor_x    := Simp.prepare_text(font, slice(to_string(text), 0, cursor.pos));
+    text_length := Simp.prepare_text(font, to_string(text));
     rect_w := cast(s64) (rect.w - 2 * padding);
     
     new_scroll_target := scroll_anim.target;
@@ -2078,7 +2058,7 @@ draw_text_input :: (using text_input: *Text_Input, r: Rect, ui_id: Ui_Id, color:
         cursor_rect := make_rect(xx (mouse.pointer.x + 2 * dpi_scale), xx mouse.pointer.y, 50, 100);
         
         // TODO: review !!!!!!!!!!!!!!!!!!!!!!
-        cursor.pos = Simp.get_cursor_pos_for_width(font_ui, to_string(text), rel_x);
+        cursor.pos = Simp.get_cursor_pos_for_width(font, to_string(text), rel_x);
         if !shift_pressed() then cursor.sel = cursor.pos;
     }
 
@@ -2087,24 +2067,24 @@ draw_text_input :: (using text_input: *Text_Input, r: Rect, ui_id: Ui_Id, color:
     if cursor.pos != cursor.sel {
         sel_start := min(cursor.pos, cursor.sel);
         sel_rect := make_rect(
-            text_start_x + Simp.prepare_text(font_ui, slice(to_string(text), 0, sel_start)),
-            rect.y + (rect.h - font_ui.default_line_spacing) / 2.0,
-            cast(float)Simp.prepare_text(font_ui, slice(to_string(text), sel_start, abs(cursor.sel - cursor.pos))),
-            cast(float)font_ui.default_line_spacing,
+            text_start_x + Simp.prepare_text(font, slice(to_string(text), 0, sel_start)),
+            rect.y + (rect.h - font.default_line_spacing) / 2.0,
+            cast(float)Simp.prepare_text(font, slice(to_string(text), sel_start, abs(cursor.sel - cursor.pos))),
+            cast(float)font.default_line_spacing,
         );
         draw_rect(sel_rect, Colors.SELECTION_ACTIVE);
     }
 
     cursor_rect := make_rect(
-        text_start_x + Simp.prepare_text(font_ui, slice(to_string(text), 0, cursor.pos)),
-        rect.y + (rect.h - font_ui.default_line_spacing) / 2.0,
+        text_start_x + Simp.prepare_text(font, slice(to_string(text), 0, cursor.pos)),
+        rect.y + (rect.h - font.default_line_spacing) / 2.0,
         2 * dpi_scale,
-        cast(float)font_ui.default_line_spacing,
+        cast(float)font.default_line_spacing,
     );
     draw_rect(cursor_rect, Colors.CURSOR);
 
-    y := rect.y + (rect.h - font_ui.character_height) / 2.0 + 2 * dpi_scale;
-    Simp.draw_text(font_ui, xx text_start_x, xx y, to_string(text), color);
+    y := rect.y + (rect.h - font.character_height) / 2.0 + 2 * dpi_scale;
+    Simp.draw_text(font, xx text_start_x, xx y, to_string(text), color);
 }
 
 draw_line_separator :: (rect: Rect) {
