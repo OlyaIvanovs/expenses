@@ -158,13 +158,7 @@ update_mouse_state :: () {
     x, y := get_mouse_pointer_position(window, false);
     mouse.pointer.x = xx x;
     mouse.pointer.y = xx (window_height - y);
-
-    update_button(*mouse.left,   .MOUSE_BUTTON_LEFT);
-    update_button(*mouse.right,  .MOUSE_BUTTON_RIGHT);
-    update_button(*mouse.middle, .MOUSE_BUTTON_MIDDLE);
     
-    mouse.scroll_y_delta = cast(s32) (cast(float) Input.mouse_delta_z);
-
     update_button :: (button: *Mouse_Button_State, key: Input.Key_Code) {
         button.is_down       = key_state(key) & .DOWN  != 0;  // NOTE: this doesn't include just_pressed!
         button.just_pressed  = key_state(key) & .START != 0;
@@ -183,6 +177,12 @@ update_mouse_state :: () {
 
         button.is_dragging   = button.is_down && mouse.pointer != button.last_down_pos;
     }
+
+    update_button(*mouse.left,   .MOUSE_BUTTON_LEFT);
+    update_button(*mouse.right,  .MOUSE_BUTTON_RIGHT);
+    update_button(*mouse.middle, .MOUSE_BUTTON_MIDDLE);
+    
+    mouse.scroll_y_delta = cast(s32) (cast(float) Input.mouse_delta_z);
 }
 
 panic :: (format_string: string, args: .. Any, exit_code : s32 = 1) {
@@ -436,7 +436,7 @@ Clipboard :: #import "Clipboard";
 #load "windows.jai";
 #load "widgets/text_input.jai";
 
-user32 :: #foreign_system_library "user32";
+user32 :: #system_library "user32";
 GetDpiForWindow :: (hWnd: HWND) -> u32 #foreign user32;
 
 DOUBLE_CLICK_SPEED     :: 0.3;  // how many seconds between clicks to consider it a double click

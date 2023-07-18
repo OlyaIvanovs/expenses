@@ -94,6 +94,21 @@ update_categories :: () {
 update_settings_transactions :: ()  {
     array_reset_keeping_memory(*settings_transactions.transactions_filtered);
     total: float64;
+    
+    compare_tr_dates :: (tr1: Transaction, tr2: Transaction) -> s64 {
+        a := tr1.date; 
+        b := tr2.date; 
+        for 0..a.count-1 {
+            if it >= b.count return 1;
+            
+            delta := cast(s64) a[it] - cast(s64) b[it];
+            if delta return xx settings_transactions.filter.date_sort * delta;
+        }
+    
+        if b.count > a.count return -1 * xx settings_transactions.filter.date_sort;
+        return 0;
+    }
+    
     for tr: settings_transactions.transactions {
         // -1: All categories 
         if (settings_transactions.filter.category_filter == -1 || tr.category_id == settings_transactions.filter.category_filter) && 
@@ -114,20 +129,6 @@ update_settings_transactions :: ()  {
     }
     
     settings_transactions.subtotal = total;
-    
-    compare_tr_dates :: (tr1: Transaction, tr2: Transaction) -> s64 {
-        a := tr1.date; 
-        b := tr2.date; 
-        for 0..a.count-1 {
-            if it >= b.count return 1;
-            
-            delta := cast(s64) a[it] - cast(s64) b[it];
-            if delta return xx settings_transactions.filter.date_sort * delta;
-        }
-    
-        if b.count > a.count return -1 * xx settings_transactions.filter.date_sort;
-        return 0;
-    }
 }
 
 update_transactions_on_dashboard :: (transactions_list: *Transactions_List) {

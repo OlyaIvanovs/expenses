@@ -851,7 +851,7 @@ draw_categories :: (r: Rect) {
         
         draw_line_separator(rect);
         
-        category_line_id := get_ui_id_from_loc_with_index(ui_id, cat_index);
+        category_line_id := get_ui_id_from_loc_with_index(ui_id, cat_index+1);
         became_active: bool;
         if mouse_pointer_is_within(wrapper) {
             became_active = maybe_set_hot_or_active(category_line_id, rect, .PRESSABLE);
@@ -900,7 +900,7 @@ draw_categories :: (r: Rect) {
     button_id := get_ui_id_from_loc();
     became_active := maybe_set_hot_or_active(button_id, add_category_button, .PRESSABLE);
     if became_active then categories_list.add = true;
-    draw_button(add_category_button, "Add a new category");
+    draw_button(add_category_button, "Add a new category", button_id);
 }
 
 draw_rules :: (r: Rect) { 
@@ -1013,7 +1013,7 @@ draw_rules :: (r: Rect) {
     button_id := get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(button_id, add_rule_button, .PRESSABLE);
     if became_active then rules_list.add = true;
-    draw_button(add_rule_button, "Add a new rule");
+    draw_button(add_rule_button, "Add a new rule", button_id);
     
     if ui.active_input == category_filter_id {
         rules_list.category_filter = draw_categories_dropdown_with_all(category_filter, rules_list.category_filter);
@@ -1076,8 +1076,7 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
             array_resize(*text_input.text, new_transaction.date.count);
             memcpy(text_input.text.data, new_transaction.date.data, new_transaction.date.count);
         }
-        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
-        input_rect := cut_top(date_area, input_height);
+        input_rect := date_area;
         draw_text_input(*text_input, input_rect, tr_date_id);
         new_transaction.date = copy_string(cast(string) text_input.text);
     } else {
@@ -1093,8 +1092,7 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
             array_resize(*text_input.text, new_transaction.details.count);
             memcpy(text_input.text.data, new_transaction.details.data, new_transaction.details.count);
         }
-        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
-        input_rect := cut_top(details_area, input_height);
+        input_rect := details_area;
         draw_text_input(*text_input, input_rect, tr_details_id);
         new_transaction.details = copy_string(cast(string) text_input.text);
     } else {
@@ -1117,8 +1115,7 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
             array_resize(*text_input.text, new_transaction.note.count);
             memcpy(text_input.text.data, new_transaction.note.data, new_transaction.note.count);
         }
-        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
-        input_rect := cut_top(note_area, input_height);
+        input_rect := note_area;
         draw_text_input(*text_input, input_rect, tr_note_id);
         new_transaction.note = copy_string(cast(string) text_input.text);
     } else {
@@ -1141,8 +1138,7 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
             array_resize(*text_input.text, amount.count);
             memcpy(text_input.text.data, amount.data, amount.count);
         }
-        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
-        input_rect := cut_top(amount_area, input_height);
+        input_rect := amount_area;
         draw_text_input(*text_input, input_rect, tr_amount_id);
         amount_parsed, ok := parse_float64(*cast(string) text_input.text);
         if ok then new_transaction.amount = amount_parsed;
@@ -1182,16 +1178,18 @@ draw_edit_transaction_dialog :: (loc := #caller_location) {
     yes = shrink_y(shrink_x(yes, 0.2 * yes.w), 0.25 * yes.h);    
     no = shrink_y(shrink_x(no, 0.2 * no.w), 0.25 * no.h);   
     
-    if settings_transactions.edit > -1 {
-        draw_button(yes, "Update");
-    } else if settings_transactions.add {
-        draw_button(yes, "Add");
-    }
-    draw_button(no, "Cancel");
+    button_id_yes := get_ui_id_from_loc(loc); 
+    button_id_no := get_ui_id_from_loc(loc); 
     
-    ui_id = get_ui_id_from_loc(loc); 
-    yes_chosen := maybe_set_hot_or_active(ui_id, yes, .PRESSABLE);
-    no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);    
+    yes_chosen := maybe_set_hot_or_active(button_id_yes, yes, .PRESSABLE);
+    no_chosen := maybe_set_hot_or_active(button_id_no, no, .PRESSABLE);    
+    
+    if settings_transactions.edit > -1 {
+        draw_button(yes, "Update", button_id_yes);
+    } else if settings_transactions.add {
+        draw_button(yes, "Add", button_id_yes);
+    }
+    draw_button(no, "Cancel", button_id_no);
     
     // Draw dropdown
     if ui.active_input == tr_category_id {
@@ -1343,16 +1341,18 @@ draw_edit_category_dialog :: (loc := #caller_location) {
     yes = shrink_y(shrink_x(yes, 0.2 * yes.w), 0.25 * yes.h);    
     no = shrink_y(shrink_x(no, 0.2 * no.w), 0.25 * no.h);   
     
-    if categories_list.edit > -1 {
-        draw_button(yes, "Update");
-    } else if categories_list.add {
-        draw_button(yes, "Add");
-    }
-    draw_button(no, "Cancel");
+    button_id_yes := get_ui_id_from_loc(loc); 
+    button_id_no := get_ui_id_from_loc(loc); 
     
-    ui_id = get_ui_id_from_loc(loc); 
-    yes_chosen := maybe_set_hot_or_active(ui_id, yes, .PRESSABLE);
-    no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);
+    yes_chosen := maybe_set_hot_or_active(button_id_yes, yes, .PRESSABLE);
+    no_chosen := maybe_set_hot_or_active(button_id_no, no, .PRESSABLE);
+    
+    if categories_list.edit > -1 {
+        draw_button(yes, "Update", button_id_yes);
+    } else if categories_list.add {
+        draw_button(yes, "Add", button_id_yes);
+    }
+    draw_button(no, "Cancel", button_id_no);
     
     if yes_chosen {    
         if new_category.name == "" {
@@ -1417,14 +1417,15 @@ draw_remove_dialog :: (mode: string, loc := #caller_location) {
     pen := make_vector2(dialog.x + 20 * dpi_scale, dialog.y + (dialog.h - font.character_height) / 2 + 2 * dpi_scale);
     Simp.draw_prepared_text(font, xx pen.x, xx pen.y, Colors.UI_DEFAULT);
     
+    ui_id := get_ui_id_from_loc(loc); 
+    
     no, yes := cut_right(buttons, xx (buttons.w / 2));
     yes = shrink_y(shrink_x(yes, 0.2 * yes.w), 0.2 * yes.h);    
     no = shrink_y(shrink_x(no, 0.2 * no.w), 0.2 * no.h);   
     
-    draw_button(yes, "Yes");
-    draw_button(no, "Cancel");
-    
-    ui_id := get_ui_id_from_loc(loc); 
+    draw_button(yes, "Yes", ui_id);
+    draw_button(no, "Cancel", ui_id);
+
     yes_chosen := maybe_set_hot_or_active(ui_id, yes, .PRESSABLE);
     no_chosen := maybe_set_hot_or_active(ui_id, no, .PRESSABLE);
     
@@ -1499,8 +1500,7 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
             array_resize(*text_input.text, new_rule.name.count);
             memcpy(text_input.text.data, new_rule.name.data, new_rule.name.count);
         }
-        input_height := cast(float) font_ui.default_line_spacing + 2 * padding;
-        input_rect := cut_top(details_area, input_height);
+        input_rect := details_area;
         draw_text_input(*text_input, input_rect, ui_details_id);
         new_rule.name = copy_string(cast(string) text_input.text);
     } else {
@@ -1532,16 +1532,18 @@ draw_edit_rule_dialog :: (loc := #caller_location) {
     yes = shrink_y(shrink_x(yes, 0.2 * yes.w), 0.25 * yes.h);    
     no = shrink_y(shrink_x(no, 0.2 * no.w), 0.25 * no.h);   
     
-    if rules_list.edit > -1 {
-        draw_button(yes, "Update");
-    } else if rules_list.add {
-        draw_button(yes, "Add");
-    }
-    draw_button(no, "Cancel");
+    button_id_yes := get_ui_id_from_loc(loc); 
+    button_id_no := get_ui_id_from_loc(loc); 
     
-    button_id := get_ui_id_from_loc(loc); 
-    yes_chosen := maybe_set_hot_or_active(button_id, yes, .PRESSABLE);
-    no_chosen := maybe_set_hot_or_active(button_id, no, .PRESSABLE);
+    yes_chosen := maybe_set_hot_or_active(button_id_yes, yes, .PRESSABLE);
+    no_chosen := maybe_set_hot_or_active(button_id_no, no, .PRESSABLE);
+    
+    if rules_list.edit > -1 {
+        draw_button(yes, "Update", button_id_yes);
+    } else if rules_list.add {
+        draw_button(yes, "Add", button_id_yes);
+    }
+    draw_button(no, "Cancel", button_id_no);
     
     if yes_chosen {    
         if new_rule.name == "" {
@@ -1726,10 +1728,10 @@ draw_settings_transactions :: (r: Rect) {
      
      remove_all_button := upload_button;   
      remove_all_button.x += transactions_buttons.w - remove_all_button.w;  
-     
-    draw_button(upload_button, "Upload transactions");
+    
     upload_button_id := get_ui_id_from_loc();
     became_active := maybe_set_hot_or_active(upload_button_id, upload_button, .PRESSABLE);
+    draw_button(upload_button, "Upload transactions", upload_button_id);
     if became_active {
         file_name, ok := get_upload_file_name();
         if !ok return;
@@ -1741,15 +1743,15 @@ draw_settings_transactions :: (r: Rect) {
     }
     
     if settings_transactions.transactions_filtered.count > 0 {
-        draw_button(remove_all_button, "Remove all transactions");
         remove_all_tr_id := get_ui_id_from_loc();
         became_active = maybe_set_hot_or_active(remove_all_tr_id, remove_all_button, .PRESSABLE);
+        draw_button(remove_all_button, "Remove all transactions", remove_all_tr_id);
         if became_active then settings_transactions.remove_all = true;
     }
     
-    draw_button(add_button, "Add a new transaction");
     add_tr_id := get_ui_id_from_loc();
     became_active = maybe_set_hot_or_active(add_tr_id, add_button, .PRESSABLE);
+    draw_button(add_button, "Add a new transaction", add_tr_id);
     if became_active {
          settings_transactions.add = true;
          before_category_choose = true;
@@ -2135,8 +2137,10 @@ draw_text_in_rect :: (rect : Rect, text: string, color : Color = Colors.UI_DEFAU
     Simp.draw_prepared_text(font, xx pen.x, xx pen.y, color);
 } 
 
-draw_button :: (rect : Rect, text: string) {
-    draw_rect(rect, Colors.BACKGROUND_BRIGHT);
+draw_button :: (rect : Rect, text: string, ui_id: Ui_Id) {
+    color := Colors.BACKGROUND_BRIGHT;
+    if mouse_pointer_is_within(rect) && ((ui.hot_last_frame == ui_id && ui.active == .none) || ui.active == ui_id) then color = Colors.BACKGROUND_BRIGHT_DIM;
+    draw_rect(rect, color);
     text_width := cast(float) Simp.prepare_text(font, text);
     text_pen := Vector2.{
         rect.x + (rect.w - text_width)/2, 

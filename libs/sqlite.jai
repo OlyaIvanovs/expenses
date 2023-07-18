@@ -14,4 +14,4 @@ SQLITE_OK :: 0;
 
 #scope_file
 
-sqlite :: #foreign_library "../sqlite3";
+sqlite :: #library "../sqlite3";
